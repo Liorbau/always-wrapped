@@ -1,8 +1,6 @@
 <div align="center">
   <img src="logo.png" alt="Always Wrapped Logo" width="100%">
   
-  <h1>Always Wrapped</h1>
-  
   <p>
     <strong>Don't wait 365 days to stay wrapped.</strong>
   </p>
