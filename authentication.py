@@ -25,6 +25,15 @@ def auth_connection():
 
     logger.info("Attempting to connect to Spotify...")
 
+    cache_content = os.getenv("SPOTIFY_CACHE_CONTENT")
+    if cache_content and not os.path.exists(".cache"):
+        logger.info("Recreating .cache file from Environment Variable...")
+        try:
+            with open(".cache", "w") as f:
+                f.write(cache_content)
+        except Exception as eec:
+            logger.error("Failed to write .cache file: %s",exc)
+
     try:
         sp = spotipy.Spotify(
             auth_manager=SpotifyOAuth(
