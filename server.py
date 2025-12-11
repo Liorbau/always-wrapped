@@ -5,11 +5,13 @@ SQLite database for recently played tracks and top songs.
 """
 
 import os
+import threading
 import sqlite3
 
 from flask import Flask, jsonify, render_template, request
 
 from logging_config import configure_logger
+from collect_songs import start_collector_service
 from analytics import get_db_connection, get_top_songs, get_top_artists
 from collect_songs import get_spotify_client, fetch_recent_tracks, save_tracks_to_db
 
@@ -77,7 +79,9 @@ def refresh_data():
         return jsonify({"error": str(exc)}), 500
 
 
-if __name__ == "__main__":
-    # Get the port from the cloud environment (or use 5000 on laptop)
+if __name__ == '__main__':
+    collector_thread = threading.Thread(target=start_collector_service, daemon=True)
+    collector_thread.start()
+    
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
