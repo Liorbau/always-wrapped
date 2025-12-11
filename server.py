@@ -14,6 +14,7 @@ from logging_config import configure_logger
 from collect_songs import start_collector_service
 from analytics import get_db_connection, get_top_songs, get_top_artists
 from collect_songs import get_spotify_client, fetch_recent_tracks, save_tracks_to_db
+from setup_db import create_database
 
 logger = configure_logger(__name__)
 
@@ -80,6 +81,9 @@ def refresh_data():
 
 
 if __name__ == '__main__':
+    logger.info("Initializing Database...")
+    create_database()
+
     collector_thread = threading.Thread(target=start_collector_service, daemon=True)
     collector_thread.start()
     
