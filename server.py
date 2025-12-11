@@ -4,6 +4,7 @@ This module serves listening history and analytics endpoints, querying the
 SQLite database for recently played tracks and top songs.
 """
 
+import os
 import sqlite3
 
 from flask import Flask, jsonify, render_template, request
@@ -77,5 +78,6 @@ def refresh_data():
 
 
 if __name__ == "__main__":
-    # This starts the server on port 5000
-    app.run(debug=True, port=5000)
+    # Get the port from the cloud environment (or use 5000 on laptop)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
