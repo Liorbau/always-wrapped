@@ -1,0 +1,14 @@
+# Security Keys
+.env
+.cache
+
+# Database
+my_spotify_data.db
+
+# Python Junk
+venv/
+__pycache__/
+*.pyc
+
+# OS Junk
+.DS_Store

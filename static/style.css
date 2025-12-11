@@ -1,0 +1,259 @@
+/* --- BASE SETTINGS --- */
+body {
+    background-color: #050505;
+    color: #FFFFFF;
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+/* --- CANVAS BACKGROUND --- */
+#energy-ribbon {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: -1;
+    background-color: #050505;
+}
+
+/* --- NAVIGATION --- */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30px 50px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 10;
+}
+
+.logo { font-weight: 900; font-size: 1.5rem; letter-spacing: -1px; }
+.green-dot { color: #1ed760; }
+.nav-links a { 
+    color: white; text-decoration: none; margin-left: 30px; 
+    font-size: 0.8rem; font-weight: 700; letter-spacing: 1px;
+}
+.nav-links a:hover { color: #1ed760; }
+
+/* --- HERO SECTION --- */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.hero {
+    min-height: 90vh; 
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 60px;
+}
+
+.hero-title {
+    font-size: 5rem;
+    font-weight: 900;
+    line-height: 0.9;
+    letter-spacing: -2px;
+    margin-bottom: 20px;
+}
+
+.gradient-text {
+    color: transparent;
+    background: linear-gradient(90deg, #ffffff, #1ed760);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.hero-subtitle {
+    font-size: 1.2rem;
+    color: #888;
+    max-width: 600px;
+    font-weight: 300;
+    margin-bottom: 40px;
+}
+
+/* --- BUTTONS & DROPDOWN WRAPPER --- */
+.hero-buttons { 
+    display: flex; 
+    gap: 20px; 
+    align-items: center; /* Vertically align button and dropdown */
+}
+
+button {
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+    letter-spacing: 1px;
+}
+
+#refresh-btn {
+    background: #1ed760;
+    border: none;
+    color: black;
+}
+
+#refresh-btn:hover { transform: scale(1.05); background: #1fdf64; }
+
+/* --- CUSTOM DROPDOWN (NEW) --- */
+.custom-dropdown-container {
+    position: relative; /* So the menu floats relative to this */
+    width: 200px;
+}
+
+/* The "Button" part */
+.dropdown-trigger {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.dropdown-trigger:hover {
+    border-color: #1ed760;
+    background: rgba(255,255,255,0.05);
+}
+
+.arrow-icon {
+    font-size: 0.8rem;
+    color: #1ed760;
+    transition: transform 0.3s;
+}
+
+/* Rotate arrow when open */
+.custom-dropdown-container.open .arrow-icon {
+    transform: rotate(180deg);
+}
+
+/* The "List" part */
+.dropdown-menu {
+    position: absolute;
+    top: 115%; /* Slight gap below button */
+    left: 0;
+    width: 100%;
+    background: #181818; /* Dark Grey Background */
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px; /* Modern Rounded Corners */
+    padding: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    
+    /* Animation: Hide/Show */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 100;
+}
+
+/* Open State */
+.custom-dropdown-container.open .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Option Items */
+.dropdown-item {
+    padding: 12px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #b3b3b3;
+    transition: all 0.2s;
+}
+
+.dropdown-item:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.dropdown-item.active {
+    color: #1ed760; /* Green text for selected */
+    background: rgba(30, 215, 96, 0.1); /* Subtle green bg */
+}
+
+/* --- CARDS & GRIDS --- */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+    align-items: stretch;
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 30px;
+    
+    display: flex;
+    flex-direction: column;
+    height: 100%; 
+    box-sizing: border-box;
+}
+
+h2 {
+    color: white;
+    font-size: 1.5rem;
+    margin-top: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+/* --- LIST ITEMS --- */
+.track-list { flex: 1; }
+
+.track-item {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    height: 80px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    box-sizing: border-box;
+}
+.track-item:last-child { border-bottom: none; }
+
+.track-img { 
+    width: 50px; height: 50px; 
+    border-radius: 8px; margin-right: 20px; object-fit: cover;
+}
+
+.artist-icon {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 20px;
+    color: #1ed760; font-size: 1.2rem;
+}
+
+.song-name { font-weight: 700; display: block; font-size: 1rem; }
+.artist-name { color: #888; font-size: 0.9rem; }
+.rank-num { font-weight: 900; color: #1ed760; font-size: 1.2rem; width: 40px; }
+
+@media (max-width: 768px) {
+    .hero-title { font-size: 3rem; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .navbar { padding: 20px; }
+    .hero-buttons { flex-direction: column; }
+}
