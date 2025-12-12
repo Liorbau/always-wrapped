@@ -25,7 +25,7 @@ def get_db_connection():
         return None
 
 
-def get_top_songs(limit=5, time_range='all_time'):
+def get_top_songs(limit=5, time_range="all_time"):
     """
     Returns the top listened songs, optionally filtered by time.
     time_range options: 'all_time', '7days', 'ytd'
@@ -44,11 +44,11 @@ def get_top_songs(limit=5, time_range='all_time'):
     WHERE 1=1 
     """
 
-    if time_range == '7days':
+    if time_range == "7days":
         query += " AND played_at >= datetime('now', '-7 days')"
-    elif time_range == 'ytd':
+    elif time_range == "ytd":
         query += " AND played_at >= datetime('now', 'start of year')"
-    
+
     query += """
     GROUP BY track_id
     ORDER BY play_count DESC
@@ -63,7 +63,7 @@ def get_top_songs(limit=5, time_range='all_time'):
     return [dict(row) for row in results]
 
 
-def get_top_artists(limit=5, time_range='all_time'):
+def get_top_artists(limit=5, time_range="all_time"):
     """
     Returns the top artists, optionally filtered by time.
     """
@@ -79,9 +79,9 @@ def get_top_artists(limit=5, time_range='all_time'):
     WHERE 1=1
     """
 
-    if time_range == '7days':
+    if time_range == "7days":
         query += " AND played_at >= datetime('now', '-7 days')"
-    elif time_range == 'ytd':
+    elif time_range == "ytd":
         query += " AND played_at >= datetime('now', 'start of year')"
 
     query += """
