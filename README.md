@@ -25,6 +25,26 @@
 
 A real-time Spotify listening history tracker and dashboard. Unlike the annual Spotify Wrapped, this runs 24/7, and provides a live "Always On" dashboard of your music habits using a self-healing background collector.
 
-## Coming Soon
-- 🤖 AI Smart Insights
-- A 'quick start' guide for personal usage
+## Quick setup
+### 1. Installation
+Clone the repo and install dependencies:
+pip install -r requirements.txt
+
+### 2. Spotify Keys
+1.  Create an App on the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2.  In **Settings**, set the **Redirect URI** to `http://127.0.0.1:8888/callback`.
+3.  Create a `.env` file in the project folder and paste your keys:
+    ```env
+    SPOTIFY_CLIENT_ID=your_id_here
+    SPOTIFY_CLIENT_SECRET=your_secret_here
+    SPOTIFY_REDIRECT_URI=[http://127.0.0.1:8888/callback](http://127.0.0.1:8888/callback)
+    ```
+
+### 3. Usage
+**Run Locally:**
+To start the dashboard and tracker on your own machine:
+python server.py
+Visit http://localhost:5000 to see your stats.
+
+**Run 24/7 (Optional):**
+ To keep collecting data while your computer is off, deploy this code to any cloud provider and add your .env keys to their environment settings.

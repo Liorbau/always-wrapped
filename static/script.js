@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initEnergyRibbons();
 });
 
-// --- NEW DROPDOWN LOGIC ---
+// --- DROPDOWN LOGIC ---
 function toggleDropdown() {
     const dropdown = document.querySelector('.custom-dropdown-container');
     dropdown.classList.toggle('open');
@@ -93,8 +93,6 @@ async function triggerRefresh() {
         if (data.status === 'success') {
             fetchRecentTracks();
             // Refresh stats with currently selected range logic if needed, 
-            // for now we just refresh the recent list to show connectivity.
-            // Stats usually don't change instantly unless new songs affect top 5.
             btn.innerHTML = '<i class="fas fa-check"></i> DONE';
         } else {
             alert('Error: ' + data.error);

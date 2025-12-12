@@ -82,7 +82,7 @@ body {
 .hero-buttons { 
     display: flex; 
     gap: 20px; 
-    align-items: center; /* Vertically align button and dropdown */
+    align-items: center; 
 }
 
 button {
@@ -103,9 +103,9 @@ button {
 
 #refresh-btn:hover { transform: scale(1.05); background: #1fdf64; }
 
-/* --- CUSTOM DROPDOWN (NEW) --- */
+/* --- CUSTOM DROPDOWN --- */
 .custom-dropdown-container {
-    position: relative; /* So the menu floats relative to this */
+    position: relative; 
     width: 200px;
 }
 
@@ -144,12 +144,12 @@ button {
 /* The "List" part */
 .dropdown-menu {
     position: absolute;
-    top: 115%; /* Slight gap below button */
+    top: 115%;
     left: 0;
     width: 100%;
-    background: #181818; /* Dark Grey Background */
+    background: #181818;
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 16px; /* Modern Rounded Corners */
+    border-radius: 16px; 
     padding: 8px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     
@@ -185,8 +185,8 @@ button {
 }
 
 .dropdown-item.active {
-    color: #1ed760; /* Green text for selected */
-    background: rgba(30, 215, 96, 0.1); /* Subtle green bg */
+    color: #1ed760; 
+    background: rgba(30, 215, 96, 0.1); 
 }
 
 /* --- CARDS & GRIDS --- */
