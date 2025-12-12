@@ -50,16 +50,17 @@ def get_recent_tracks():
         return jsonify({"error": str(exc)}), 500
 
 
-@app.route('/api/stats/top-songs', methods=['GET'])
+@app.route("/api/stats/top-songs", methods=["GET"])
 def get_top_songs_api():
     # Get parameter from URL (e.g. ?range=7days), default to 'all_time'
-    time_range = request.args.get('range', 'all_time')
+    time_range = request.args.get("range", "all_time")
     results = get_top_songs(limit=5, time_range=time_range)
     return jsonify(results)
 
-@app.route('/api/stats/top-artists', methods=['GET'])
+
+@app.route("/api/stats/top-artists", methods=["GET"])
 def get_top_artists_api():
-    time_range = request.args.get('range', 'all_time')
+    time_range = request.args.get("range", "all_time")
     results = get_top_artists(limit=5, time_range=time_range)
     return jsonify(results)
 
@@ -80,12 +81,12 @@ def refresh_data():
         return jsonify({"error": str(exc)}), 500
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logger.info("Initializing Database...")
     create_database()
 
     collector_thread = threading.Thread(target=start_collector_service, daemon=True)
     collector_thread.start()
-    
+
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host="0.0.0.0", port=port)

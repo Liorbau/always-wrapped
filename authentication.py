@@ -32,7 +32,7 @@ def auth_connection():
             with open(".cache", "w") as f:
                 f.write(cache_content)
         except Exception as eec:
-            logger.error("Failed to write .cache file: %s",exc)
+            logger.error("Failed to write .cache file: %s", exc)
 
     try:
         sp = spotipy.Spotify(

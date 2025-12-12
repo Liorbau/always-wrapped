@@ -101,9 +101,9 @@ def save_tracks_to_db(tracks):
 def start_collector_service():
     """Runs the collector loop 24/7."""
     logger.info("Starting Spotify Collector Service...")
-    
+
     sp = get_spotify_client()
-    
+
     if not sp:
         logger.error("Could not authenticate. Exiting collector.")
         return
@@ -118,11 +118,12 @@ def start_collector_service():
                 logger.info("No tracks found or API error.")
 
             logger.info("Cycle complete. Sleeping for 20 minutes...")
-            time.sleep(1200) # 20 minutes
+            time.sleep(1200)  # 20 minutes
 
         except Exception as exc:
             logger.error("Critical Error in loop: %s", exc)
             time.sleep(60)
+
 
 if __name__ == "__main__":
     start_collector_service()
