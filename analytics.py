@@ -35,12 +35,12 @@ def get_top_songs(limit=5, time_range="all_time"):
 
     if time_range == "7days":
         if driver == "postgres":
-            query += " AND played_at >= NOW() - INTERVAL '7 days'"
+            query += " AND played_at >= (NOW() - INTERVAL '7 days')::text"
         else:
             query += " AND played_at >= datetime('now', '-7 days')"
     elif time_range == "ytd":
         if driver == "postgres":
-            query += " AND played_at >= date_trunc('year', NOW())"
+            query += " AND played_at >= (date_trunc('year', NOW()))::text"
         else:
             query += " AND played_at >= datetime('now', 'start of year')"
 
@@ -78,12 +78,12 @@ def get_top_artists(limit=5, time_range="all_time"):
 
     if time_range == "7days":
         if driver == "postgres":
-            query += " AND played_at >= NOW() - INTERVAL '7 days'"
+            query += " AND played_at >= (NOW() - INTERVAL '7 days')::text"
         else:
             query += " AND played_at >= datetime('now', '-7 days')"
     elif time_range == "ytd":
         if driver == "postgres":
-            query += " AND played_at >= date_trunc('year', NOW())"
+            query += " AND played_at >= (date_trunc('year', NOW()))::text"
         else:
             query += " AND played_at >= datetime('now', 'start of year')"
 
