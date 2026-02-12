@@ -1,7 +1,6 @@
 """Get data from spotify server using the user authentication and save it to the db"""
 
-import sqlite3
-import sys
+from db_config import get_db_connection, get_placeholder
 import time
 
 from dotenv import load_dotenv
@@ -49,11 +48,14 @@ def save_tracks_to_db(tracks):
         logger.info("No tracks to save.")
         return
 
-    db_name = "my_spotify_data.db"
-
     try:
-        conn = sqlite3.connect(db_name)
+        conn, driver = get_db_connection()
+        if not conn:
+            return
+        
         cursor = conn.cursor()
+
+        p = get_placeholder(driver)
 
         new_songs_count = 0
 
@@ -66,21 +68,28 @@ def save_tracks_to_db(tracks):
             else:
                 image_url = None
 
-            cursor.execute(
+            if driver == "postgres":
+                sql = f"""
+                    INSERT INTO listening_history 
+                    (played_at, track_id, track_name, artist_name, album_name, album_image_url)
+                    VALUES ({p}, {p}, {p}, {p}, {p}, {p})
+                    ON CONFLICT (played_at) DO NOTHING
                 """
+            else:
+                sql = f"""
                 INSERT OR IGNORE INTO listening_history 
                 (played_at, track_id, track_name, artist_name, album_name, album_image_url)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    played_at,
-                    track["id"],
-                    track["name"],
-                    track["artists"][0]["name"],
-                    track["album"]["name"],
-                    image_url,
-                ),
-            )
+                VALUES ({p}, {p}, {p}, {p}, {p}, {p})
+                """
+
+            cursor.execute(sql,(
+                played_at,
+                track["id"],
+                track["name"],
+                track["artists"][0]["name"],
+                track["album"]["name"],
+                image_url,
+            ))
 
             if cursor.rowcount > 0:
                 new_songs_count += 1
@@ -94,7 +103,7 @@ def save_tracks_to_db(tracks):
         conn.close()
         logger.info("Database update complete. Added %d new songs.", new_songs_count)
 
-    except sqlite3.Error as exc:
+    except Exception as exc:
         logger.error("Database error: %s", exc)
 
 

@@ -4,7 +4,7 @@ This module creates the 'my_spotify_data.db' database with a 'listening_history'
 table if they don't already exist.
 """
 
-import sqlite3
+from db_config import get_db_connection
 
 from logging_config import configure_logger
 
@@ -19,11 +19,16 @@ def create_database():
     logger.info("Connecting to database: %s...", db_name)
 
     try:
-        conn = sqlite3.connect("my_spotify_data.db")
+        conn, driver = get_db_connection()
+        if not conn:
+            return
+        
         cursor = conn.cursor()
 
+        ts_type = "TIMESTAMP" if driver == "postgres" else "DATETIME"
+
         cursor.execute(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS listening_history (
                 played_at TEXT PRIMARY KEY,
                 track_id TEXT,
@@ -31,18 +36,18 @@ def create_database():
                 artist_name TEXT,
                 album_name TEXT,
                 album_image_url TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                timestamp {ts_type} DEFAULT CURRENT_TIMESTAMP
             )
             """
         )
 
-        logger.info("Table 'listening_history' checked/created successfully.")
+        logger.info(f"Table 'listening_history' checked/created successfully on {driver}.")
 
         conn.commit()
         conn.close()
         logger.info("Database setup completed.")
 
-    except sqlite3.Error as exc:
+    except Exception as exc:
         logger.error("Database error occurred: %s", exc)
 
 
