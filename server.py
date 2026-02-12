@@ -6,15 +6,16 @@ SQLite database for recently played tracks and top songs.
 
 import os
 import threading
-import sqlite3
 
 from flask import Flask, jsonify, render_template, request
 
 from logging_config import configure_logger
 from collect_songs import start_collector_service
-from analytics import get_db_connection, get_top_songs, get_top_artists
+from analytics import get_top_songs, get_top_artists
+from db_config import get_db_connection
 from collect_songs import get_spotify_client, fetch_recent_tracks, save_tracks_to_db
 from setup_db import create_database
+from db_config import get_db_connection
 
 logger = configure_logger(__name__)
 
@@ -31,21 +32,23 @@ def index():
 def get_recent_tracks():
     """Return the last 50 songs listened to."""
     try:
-        conn = get_db_connection()
-        conn.row_factory = sqlite3.Row
+        conn, _ = get_db_connection()
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
 
         cursor = conn.cursor()
         cursor.execute(
             "SELECT * FROM listening_history ORDER BY played_at DESC LIMIT 50"
         )
 
+        columns = [col[0] for col in cursor.description]
         rows = cursor.fetchall()
-        results = [dict(row) for row in rows]
+        results = [dict(zip(columns, row)) for row in rows]
 
         conn.close()
         return jsonify(results)
 
-    except sqlite3.Error as exc:
+    except Exception as exc:
         logger.error("Database error: %s", exc)
         return jsonify({"error": str(exc)}), 500
 
@@ -77,7 +80,7 @@ def refresh_data():
         save_tracks_to_db(tracks)
 
         return jsonify({"status": "success", "count": len(tracks)})
-    except sqlite3.Error as exc:
+    except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
 
