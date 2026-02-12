@@ -1,10 +1,10 @@
 """Get data from spotify server using the user authentication and save it to the db"""
 
-from db_config import get_db_connection, get_placeholder
 import time
 
 from dotenv import load_dotenv
 
+from db_config import get_db_connection, get_placeholder
 from authentication import auth_connection
 from logging_config import configure_logger
 
@@ -52,7 +52,7 @@ def save_tracks_to_db(tracks):
         conn, driver = get_db_connection()
         if not conn:
             return
-        
+
         cursor = conn.cursor()
 
         p = get_placeholder(driver)
@@ -82,14 +82,17 @@ def save_tracks_to_db(tracks):
                 VALUES ({p}, {p}, {p}, {p}, {p}, {p})
                 """
 
-            cursor.execute(sql,(
-                played_at,
-                track["id"],
-                track["name"],
-                track["artists"][0]["name"],
-                track["album"]["name"],
-                image_url,
-            ))
+            cursor.execute(
+                sql,
+                (
+                    played_at,
+                    track["id"],
+                    track["name"],
+                    track["artists"][0]["name"],
+                    track["album"]["name"],
+                    image_url,
+                ),
+            )
 
             if cursor.rowcount > 0:
                 new_songs_count += 1

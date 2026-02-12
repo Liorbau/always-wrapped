@@ -22,7 +22,7 @@ def create_database():
         conn, driver = get_db_connection()
         if not conn:
             return
-        
+
         cursor = conn.cursor()
 
         ts_type = "TIMESTAMP" if driver == "postgres" else "DATETIME"
@@ -41,7 +41,9 @@ def create_database():
             """
         )
 
-        logger.info(f"Table 'listening_history' checked/created successfully on {driver}.")
+        logger.info(
+            "Table 'listening_history' checked/created successfully on %s.", driver,
+        )
 
         conn.commit()
         conn.close()
