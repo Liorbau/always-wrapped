@@ -39,7 +39,7 @@ pip install -r requirements.txt
     ```env
     SPOTIFY_CLIENT_ID=your_id_here
     SPOTIFY_CLIENT_SECRET=your_secret_here
-    SPOTIFY_REDIRECT_URI=[http://127.0.0.1:8888/callback](http://127.0.0.1:8888/callback)
+    SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
     ```
 
 ### 3. Usage
