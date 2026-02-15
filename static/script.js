@@ -1,3 +1,6 @@
+// Track the currently selected time range
+let currentTimeRange = 'all_time';
+
 document.addEventListener('DOMContentLoaded', () => {
     fetchRecentTracks();
     // Default call with 'all_time'
@@ -22,10 +25,13 @@ function selectRange(value, text, element) {
     });
     element.classList.add('active');
 
-    // 3. Close the menu
+    // 3. Update the tracked time range
+    currentTimeRange = value;
+
+    // 4. Close the menu
     toggleDropdown();
 
-    // 4. Fetch new data
+    // 5. Fetch new data
     fetchTopSongs(value);
     fetchTopArtists(value);
 }
@@ -92,7 +98,9 @@ async function triggerRefresh() {
         const data = await response.json();
         if (data.status === 'success') {
             fetchRecentTracks();
-            // Refresh stats with currently selected range logic if needed, 
+            // Refresh charts with currently selected time range
+            fetchTopSongs(currentTimeRange);
+            fetchTopArtists(currentTimeRange);
             btn.innerHTML = '<i class="fas fa-check"></i> DONE';
         } else {
             alert('Error: ' + data.error);
