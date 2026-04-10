@@ -42,7 +42,8 @@ def create_database():
         )
 
         logger.info(
-            "Table 'listening_history' checked/created successfully on %s.", driver,
+            "Table 'listening_history' checked/created successfully on %s.",
+            driver,
         )
 
         conn.commit()

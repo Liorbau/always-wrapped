@@ -3,10 +3,10 @@ let currentTimeRange = 'all_time';
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchRecentTracks();
-    // Default call with 'all_time'
     fetchTopSongs('all_time');
     fetchTopArtists('all_time');
     initEnergyRibbons();
+    loadInsight();
 });
 
 // --- DROPDOWN LOGIC ---
@@ -151,12 +151,134 @@ async function fetchTopSongs(timeRange = 'all_time') {
             card.innerHTML = `
                 <div class="rank-num">#${index + 1}</div>
                 <img src="${imgUrl}" class="track-img">
-                <div><span class="song-name">${track.track_name}</span><span style="color:#888; font-size:0.8rem">${track.play_count} plays</span></div>
+                <div><span class="song-name">${track.track_name}</span><span style="color:#888; font-size:0.8rem">${track.play_count} plays</span><span style="color:#888; font-size:0.8rem; display:block">${track.artist_name}</span></div>
             `;
             container.appendChild(card);
         });
     } catch (e) { container.innerHTML = '<p>Error loading.</p>'; }
 }
+
+// --- INSIGHT CARD ---
+let insightLocked = false;
+let insightTimer = null;
+
+function startInsightTimer() {
+    clearInterval(insightTimer);
+    insightTimer = setInterval(cycleInsight, 15000);
+}
+
+async function loadInsight() {
+    try {
+        const res = await fetch('/api/insight');
+        const data = await res.json();
+        document.getElementById('insight-text').innerHTML = data.text;
+        document.getElementById('insight-icon-el').className = `fas fa-${data.icon} insight-icon`;
+    } catch (e) { /* keep default text */ }
+    startInsightTimer();
+}
+
+async function cycleInsight() {
+    if (insightLocked) return;
+    insightLocked = true;
+    startInsightTimer();
+
+    const content = document.getElementById('insight-content');
+
+    content.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    content.style.transform = 'translateY(-15px)';
+    content.style.opacity = '0';
+
+    try {
+        const res = await fetch('/api/insight');
+        const data = await res.json();
+
+        setTimeout(() => {
+            document.getElementById('insight-text').innerHTML = data.text;
+            document.getElementById('insight-icon-el').className = `fas fa-${data.icon} insight-icon`;
+
+            content.style.transition = 'none';
+            content.style.transform = 'translateY(15px)';
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    content.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+                    content.style.transform = 'translateY(0)';
+                    content.style.opacity = '1';
+                    setTimeout(() => { insightLocked = false; }, 350);
+                });
+            });
+        }, 300);
+    } catch (e) {
+        content.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+        content.style.transform = 'translateY(0)';
+        content.style.opacity = '1';
+        insightLocked = false;
+    }
+}
+
+// --- SEARCH LOGIC ---
+let searchTimeRange = 'all_time';
+let searchDebounceTimer = null;
+
+function handleSearch(query) {
+    clearTimeout(searchDebounceTimer);
+    const dropdown = document.getElementById('search-dropdown');
+    if (!query.trim()) {
+        dropdown.classList.remove('open');
+        return;
+    }
+    searchDebounceTimer = setTimeout(() => performSearch(query.trim()), 300);
+}
+
+async function performSearch(query) {
+    const dropdown = document.getElementById('search-dropdown');
+    const resultsContainer = document.getElementById('search-results');
+    try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&range=${searchTimeRange}`);
+        const results = await response.json();
+        dropdown.classList.add('open');
+        resultsContainer.innerHTML = '';
+        if (results.length === 0) {
+            resultsContainer.innerHTML = '<div class="search-no-results">No results found for this period.</div>';
+            return;
+        }
+        results.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'search-result-item';
+            const icon = item.type === 'artist' ? 'fa-microphone' : 'fa-music';
+            const name = item.type === 'song' ? item.track_name : item.artist_name;
+            const detail = item.type === 'song' ? `${item.artist_name} · Song` : 'Artist';
+            div.innerHTML = `
+                <i class="fas ${icon} search-result-icon"></i>
+                <div class="search-result-info">
+                    <span class="search-result-name">${name}</span>
+                    <span class="search-result-type">${detail}</span>
+                </div>
+                <span class="search-result-rank">#${item.rank}</span>
+            `;
+            resultsContainer.appendChild(div);
+        });
+    } catch (e) {
+        dropdown.classList.add('open');
+        resultsContainer.innerHTML = '<div class="search-no-results">Error searching.</div>';
+    }
+}
+
+function selectSearchRange(range, element) {
+    searchTimeRange = range;
+    document.querySelectorAll('.search-tab').forEach(t => t.classList.remove('active'));
+    element.classList.add('active');
+    const query = document.getElementById('search-input').value.trim();
+    if (query) performSearch(query);
+}
+
+window.addEventListener('click', (e) => {
+    const container = document.querySelector('.search-container');
+    const dropdown = document.getElementById('search-dropdown');
+    if (container && !container.contains(e.target)) {
+        dropdown.classList.remove('open');
+    }
+});
 
 async function fetchTopArtists(timeRange = 'all_time') {
     const container = document.getElementById('top-artists-list');

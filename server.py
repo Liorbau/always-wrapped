@@ -11,11 +11,10 @@ from flask import Flask, jsonify, render_template, request
 
 from logging_config import configure_logger
 from collect_songs import start_collector_service
-from analytics import get_top_songs, get_top_artists
+from analytics import get_top_songs, get_top_artists, search_music, get_random_insight
 from db_config import get_db_connection
 from collect_songs import get_spotify_client, fetch_recent_tracks, save_tracks_to_db
 from setup_db import create_database
-from db_config import get_db_connection
 
 logger = configure_logger(__name__)
 
@@ -65,6 +64,21 @@ def get_top_songs_api():
 def get_top_artists_api():
     time_range = request.args.get("range", "all_time")
     results = get_top_artists(limit=5, time_range=time_range)
+    return jsonify(results)
+
+
+@app.route("/api/insight", methods=["GET"])
+def insight_api():
+    return jsonify(get_random_insight())
+
+
+@app.route("/api/search", methods=["GET"])
+def search_api():
+    query = request.args.get("q", "").strip()
+    time_range = request.args.get("range", "all_time")
+    if not query:
+        return jsonify([])
+    results = search_music(query, time_range=time_range)
     return jsonify(results)
 
 
