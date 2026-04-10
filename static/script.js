@@ -247,7 +247,7 @@ async function performSearch(query) {
             div.className = 'search-result-item';
             const icon = item.type === 'artist' ? 'fa-microphone' : 'fa-music';
             const name = item.type === 'song' ? item.track_name : item.artist_name;
-            const detail = item.type === 'song' ? `${item.artist_name} · Song` : 'Artist';
+            const detail = item.type === 'song' ? `${item.artist_name} · ${item.play_count} plays` : `Artist · ${item.play_count} plays`;
             div.innerHTML = `
                 <i class="fas ${icon} search-result-icon"></i>
                 <div class="search-result-info">
