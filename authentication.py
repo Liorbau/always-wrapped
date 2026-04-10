@@ -31,7 +31,7 @@ def auth_connection():
         try:
             with open(".cache", "w") as f:
                 f.write(cache_content)
-        except Exception as eec:
+        except Exception as exc:
             logger.error("Failed to write .cache file: %s", exc)
 
     try:

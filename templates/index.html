@@ -42,6 +42,28 @@
                     </div>
                 </div>
 
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="search-input" placeholder="Song, artist, or #rank..." oninput="handleSearch(this.value)">
+                    </div>
+                    <div class="search-dropdown" id="search-dropdown">
+                        <div class="search-range-tabs">
+                            <span class="search-tab active" onclick="selectSearchRange('all_time', this)">All Time</span>
+                            <span class="search-tab" onclick="selectSearchRange('ytd', this)">YTD</span>
+                            <span class="search-tab" onclick="selectSearchRange('7days', this)">7 Days</span>
+                        </div>
+                        <div id="search-results"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="insight-card" onmouseenter="cycleInsight()">
+                <div class="insight-content" id="insight-content">
+                    <i class="fas fa-lightbulb insight-icon" id="insight-icon-el"></i>
+                    <span id="insight-text">Hover here for a fun fact...</span>
+                </div>
             </div>
         </section>
 
