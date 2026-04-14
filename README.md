@@ -43,6 +43,8 @@ pip install -r requirements.txt
     ```
 
 ### 3. Usage
+**NOTE: Spotify only provides access to your last 50 played tracks, your statistics will begin with these.**
+
 **Run Locally:**
 To start the dashboard and tracker on your own machine:
 python server.py
