@@ -36,10 +36,31 @@ def create_database():
                 artist_name TEXT,
                 album_name TEXT,
                 album_image_url TEXT,
+                artist_id TEXT,
                 timestamp {ts_type} DEFAULT CURRENT_TIMESTAMP
             )
             """
         )
+
+        if driver == "postgres":
+            cursor.execute(
+                """
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'listening_history'
+                  AND column_name = 'artist_id'
+                """
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    "ALTER TABLE listening_history ADD COLUMN artist_id TEXT"
+                )
+        else:
+            cursor.execute("PRAGMA table_info(listening_history)")
+            col_names = [row[1] for row in cursor.fetchall()]
+            if "artist_id" not in col_names:
+                cursor.execute(
+                    "ALTER TABLE listening_history ADD COLUMN artist_id TEXT"
+                )
 
         logger.info(
             "Table 'listening_history' checked/created successfully on %s.",

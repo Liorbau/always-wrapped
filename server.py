@@ -21,6 +21,46 @@ logger = configure_logger(__name__)
 app = Flask(__name__)
 
 
+def enrich_top_artists_with_spotify_images(artists):
+    """Add artist_image_url from Spotify Web API (GET /v1/artists?ids=)."""
+    if not artists:
+        return artists
+
+    ordered_ids = []
+    seen = set()
+    for row in artists:
+        aid = row.get("artist_id")
+        if aid and aid not in seen:
+            seen.add(aid)
+            ordered_ids.append(aid)
+
+    id_to_url = {}
+    if ordered_ids:
+        sp = get_spotify_client()
+        if sp:
+            try:
+                resp = sp.artists(ordered_ids)
+                for a in resp.get("artists") or []:
+                    if not a:
+                        continue
+                    images = a.get("images") or []
+                    id_to_url[a["id"]] = images[0]["url"] if images else None
+            except Exception as exc:
+                logger.warning("Could not fetch artist images: %s", exc)
+
+    enriched = []
+    for row in artists:
+        aid = row.get("artist_id")
+        enriched.append(
+            {
+                "artist_name": row["artist_name"],
+                "play_count": row["play_count"],
+                "artist_image_url": id_to_url.get(aid) if aid else None,
+            }
+        )
+    return enriched
+
+
 @app.route("/")
 def index():
     """Serves the main dashboard page."""
@@ -64,6 +104,7 @@ def get_top_songs_api():
 def get_top_artists_api():
     time_range = request.args.get("range", "all_time")
     results = get_top_artists(limit=5, time_range=time_range)
+    results = enrich_top_artists_with_spotify_images(results)
     return jsonify(results)
 
 
