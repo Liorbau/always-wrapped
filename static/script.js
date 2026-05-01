@@ -293,9 +293,13 @@ async function fetchTopArtists(timeRange = 'all_time') {
         artists.forEach((artist, index) => {
             const card = document.createElement('div');
             card.className = 'track-item';
+            const imgUrl = artist.artist_image_url;
+            const thumbHtml = imgUrl
+                ? `<img src="${imgUrl}" class="track-img" alt="">`
+                : `<div class="artist-icon"><i class="fas fa-microphone"></i></div>`;
             card.innerHTML = `
                 <div class="rank-num">#${index + 1}</div>
-                <div class="artist-icon"><i class="fas fa-microphone"></i></div>
+                ${thumbHtml}
                 <div><span class="song-name">${artist.artist_name}</span><span style="color:#888; font-size:0.8rem">${artist.play_count} plays</span></div>
             `;
             container.appendChild(card);
