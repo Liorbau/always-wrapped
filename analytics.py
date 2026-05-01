@@ -77,6 +77,7 @@ def get_top_artists(limit=5, time_range="all_time"):
     SELECT 
         artist_name, 
         COUNT(*) as play_count,
+        MAX(artist_image_url) as artist_image_url,
         MAX(artist_id) as artist_id
     FROM listening_history
     WHERE 1=1

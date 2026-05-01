@@ -37,6 +37,7 @@ def create_database():
                 album_name TEXT,
                 album_image_url TEXT,
                 artist_id TEXT,
+                artist_image_url TEXT,
                 timestamp {ts_type} DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -54,12 +55,27 @@ def create_database():
                 cursor.execute(
                     "ALTER TABLE listening_history ADD COLUMN artist_id TEXT"
                 )
+            cursor.execute(
+                """
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'listening_history'
+                  AND column_name = 'artist_image_url'
+                """
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    "ALTER TABLE listening_history ADD COLUMN artist_image_url TEXT"
+                )
         else:
             cursor.execute("PRAGMA table_info(listening_history)")
             col_names = [row[1] for row in cursor.fetchall()]
             if "artist_id" not in col_names:
                 cursor.execute(
                     "ALTER TABLE listening_history ADD COLUMN artist_id TEXT"
+                )
+            if "artist_image_url" not in col_names:
+                cursor.execute(
+                    "ALTER TABLE listening_history ADD COLUMN artist_image_url TEXT"
                 )
 
         logger.info(
