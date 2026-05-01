@@ -22,9 +22,16 @@ app = Flask(__name__)
 
 
 def enrich_top_artists_with_spotify_images(artists):
-    """Add artist_image_url from Spotify Web API (GET /v1/artists?ids=)."""
+    """Add artist_image_url from Spotify Web API (GET /v1/artists?ids=).
+
+    Rows without ``artist_id`` (e.g. history collected before that column
+    existed) still get an image via catalog search when the batch lookup
+    cannot resolve a URL.
+    """
     if not artists:
         return artists
+
+    sp = get_spotify_client()
 
     ordered_ids = []
     seen = set()
@@ -35,27 +42,63 @@ def enrich_top_artists_with_spotify_images(artists):
             ordered_ids.append(aid)
 
     id_to_url = {}
-    if ordered_ids:
-        sp = get_spotify_client()
-        if sp:
-            try:
-                resp = sp.artists(ordered_ids)
-                for a in resp.get("artists") or []:
-                    if not a:
-                        continue
-                    images = a.get("images") or []
-                    id_to_url[a["id"]] = images[0]["url"] if images else None
-            except Exception as exc:
-                logger.warning("Could not fetch artist images: %s", exc)
+    if ordered_ids and sp:
+        try:
+            resp = sp.artists(ordered_ids)
+            for a in resp.get("artists") or []:
+                if not a:
+                    continue
+                images = a.get("images") or []
+                id_to_url[a["id"]] = images[0]["url"] if images else None
+        except Exception as exc:
+            logger.warning("Could not fetch artist images: %s", exc)
+
+    def _image_url_from_spotify_artist(a):
+        if not a:
+            return None
+        imgs = a.get("images") or []
+        return imgs[0]["url"] if imgs else None
+
+    def _search_fallback(name, preferred_id):
+        """Resolve cover URL when id is missing or artists(ids) had no image."""
+        if not sp or not name or not str(name).strip():
+            return None
+        safe = str(name).strip().replace('"', "")
+        try:
+            res = sp.search(
+                q=f'artist:"{safe}"',
+                type="artist",
+                limit=5,
+            )
+        except Exception as exc:
+            logger.warning("Artist image search failed for %r: %s", name, exc)
+            return None
+        items = (res.get("artists") or {}).get("items") or []
+        if not items:
+            return None
+        pick = None
+        if preferred_id:
+            pick = next((x for x in items if x.get("id") == preferred_id), None)
+        if pick is None:
+            needle = safe.lower()
+            pick = next(
+                (x for x in items if (x.get("name") or "").lower() == needle),
+                items[0],
+            )
+        return _image_url_from_spotify_artist(pick)
 
     enriched = []
     for row in artists:
         aid = row.get("artist_id")
+        url = id_to_url.get(aid) if aid else None
+        if not url:
+            url = _search_fallback(row.get("artist_name"), aid)
+
         enriched.append(
             {
                 "artist_name": row["artist_name"],
                 "play_count": row["play_count"],
-                "artist_image_url": id_to_url.get(aid) if aid else None,
+                "artist_image_url": url,
             }
         )
     return enriched
