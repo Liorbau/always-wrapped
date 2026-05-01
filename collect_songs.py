@@ -68,18 +68,21 @@ def save_tracks_to_db(tracks):
             else:
                 image_url = None
 
+            primary_artist = track.get("artists", [{}])[0]
+            artist_spotify_id = primary_artist.get("id")
+
             if driver == "postgres":
                 sql = f"""
                     INSERT INTO listening_history 
-                    (played_at, track_id, track_name, artist_name, album_name, album_image_url)
-                    VALUES ({p}, {p}, {p}, {p}, {p}, {p})
+                    (played_at, track_id, track_name, artist_name, album_name, album_image_url, artist_id)
+                    VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p})
                     ON CONFLICT (played_at) DO NOTHING
                 """
             else:
                 sql = f"""
                 INSERT OR IGNORE INTO listening_history 
-                (played_at, track_id, track_name, artist_name, album_name, album_image_url)
-                VALUES ({p}, {p}, {p}, {p}, {p}, {p})
+                (played_at, track_id, track_name, artist_name, album_name, album_image_url, artist_id)
+                VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p})
                 """
 
             cursor.execute(
@@ -88,9 +91,10 @@ def save_tracks_to_db(tracks):
                     played_at,
                     track["id"],
                     track["name"],
-                    track["artists"][0]["name"],
+                    primary_artist.get("name"),
                     track["album"]["name"],
                     image_url,
+                    artist_spotify_id,
                 ),
             )
 
