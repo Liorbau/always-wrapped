@@ -21,46 +21,57 @@ logger = configure_logger(__name__)
 app = Flask(__name__)
 
 
-def enrich_top_artists_with_spotify_images(artists):
-    """Add artist_image_url from Spotify Web API (GET /v1/artists?ids=).
+def enrich_top_artists_missing_images(artists):
+    """Use Spotify only when ``artist_image_url`` is missing (legacy rows).
 
-    Rows without ``artist_id`` (e.g. history collected before that column
-    existed) still get an image via catalog search when the batch lookup
-    cannot resolve a URL.
+    Prefer batch ``artists?ids=`` when ``artist_id`` is known; otherwise
+    catalog search by name as a last resort.
     """
     if not artists:
         return artists
 
+    missing = [row for row in artists if not row.get("artist_image_url")]
+    if not missing:
+        return [
+            {
+                "artist_name": row["artist_name"],
+                "play_count": row["play_count"],
+                "artist_image_url": row.get("artist_image_url"),
+            }
+            for row in artists
+        ]
+
     sp = get_spotify_client()
 
-    ordered_ids = []
-    seen = set()
-    for row in artists:
+    ids_ordered = []
+    seen_id = set()
+    for row in missing:
         aid = row.get("artist_id")
-        if aid and aid not in seen:
-            seen.add(aid)
-            ordered_ids.append(aid)
+        if aid and aid not in seen_id:
+            seen_id.add(aid)
+            ids_ordered.append(aid)
 
     id_to_url = {}
-    if ordered_ids and sp:
+    if ids_ordered and sp:
         try:
-            resp = sp.artists(ordered_ids)
-            for a in resp.get("artists") or []:
-                if not a:
-                    continue
-                images = a.get("images") or []
-                id_to_url[a["id"]] = images[0]["url"] if images else None
+            for i in range(0, len(ids_ordered), 50):
+                chunk = ids_ordered[i : i + 50]
+                resp = sp.artists(chunk)
+                for a in resp.get("artists") or []:
+                    if not a:
+                        continue
+                    images = a.get("images") or []
+                    id_to_url[a["id"]] = images[0]["url"] if images else None
         except Exception as exc:
-            logger.warning("Could not fetch artist images: %s", exc)
+            logger.warning("Top artists: batch artist fetch failed: %s", exc)
 
-    def _image_url_from_spotify_artist(a):
+    def _url_from_artist_obj(a):
         if not a:
             return None
         imgs = a.get("images") or []
         return imgs[0]["url"] if imgs else None
 
-    def _search_fallback(name, preferred_id):
-        """Resolve cover URL when id is missing or artists(ids) had no image."""
+    def _search_by_name(name, preferred_id):
         if not sp or not name or not str(name).strip():
             return None
         safe = str(name).strip().replace('"', "")
@@ -71,7 +82,7 @@ def enrich_top_artists_with_spotify_images(artists):
                 limit=5,
             )
         except Exception as exc:
-            logger.warning("Artist image search failed for %r: %s", name, exc)
+            logger.warning("Top artists: search failed for %r: %s", name, exc)
             return None
         items = (res.get("artists") or {}).get("items") or []
         if not items:
@@ -85,14 +96,18 @@ def enrich_top_artists_with_spotify_images(artists):
                 (x for x in items if (x.get("name") or "").lower() == needle),
                 items[0],
             )
-        return _image_url_from_spotify_artist(pick)
+        return _url_from_artist_obj(pick)
 
     enriched = []
     for row in artists:
+        url = row.get("artist_image_url")
         aid = row.get("artist_id")
-        url = id_to_url.get(aid) if aid else None
+
+        if not url and aid:
+            url = id_to_url.get(aid)
+
         if not url:
-            url = _search_fallback(row.get("artist_name"), aid)
+            url = _search_by_name(row.get("artist_name"), aid)
 
         enriched.append(
             {
@@ -147,7 +162,7 @@ def get_top_songs_api():
 def get_top_artists_api():
     time_range = request.args.get("range", "all_time")
     results = get_top_artists(limit=5, time_range=time_range)
-    results = enrich_top_artists_with_spotify_images(results)
+    results = enrich_top_artists_missing_images(results)
     return jsonify(results)
 
 
@@ -175,7 +190,7 @@ def refresh_data():
             return jsonify({"error": "Failed to connect to Spotify"}), 500
 
         tracks = fetch_recent_tracks(sp)
-        save_tracks_to_db(tracks)
+        save_tracks_to_db(tracks, sp)
 
         return jsonify({"status": "success", "count": len(tracks)})
     except Exception as exc:
