@@ -10,6 +10,8 @@ import os
 import sqlite3
 import logging
 
+from dotenv import load_dotenv
+
 try:
     import psycopg2
 except ImportError:
@@ -18,25 +20,37 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-DB_URL = os.getenv("DATABASE_URL")
+# Load .env here, not in callers: reading DATABASE_URL at import time made
+# every local entrypoint that imported db_config before load_dotenv() ran
+# silently fall back to SQLite while prod (real env var) used Postgres.
+load_dotenv()
 
 
-def get_db_connection():
+def get_db_connection(readonly=False):
     """
     Returns a database connection.
     If DATABASE_URL exists - connects to Postgres (Supabase).
     If not - connects to local SQLite.
+
+    readonly=True enforces read-only at the connection level (used by
+    agent tools so no LLM-written SQL can ever mutate data).
     """
-    if DB_URL and psycopg2:
+    db_url = os.getenv("DATABASE_URL")
+    if db_url and psycopg2:
         try:
-            conn = psycopg2.connect(DB_URL)
+            conn = psycopg2.connect(db_url)
+            if readonly:
+                conn.set_session(readonly=True)
             return conn, "postgres"
         except psycopg2.Error as e:
             logger.error("Failed to connect to Postgres: %s", e)
             return None, None
     else:
         try:
-            conn = sqlite3.connect("my_spotify_data.db")
+            if readonly:
+                conn = sqlite3.connect("file:my_spotify_data.db?mode=ro", uri=True)
+            else:
+                conn = sqlite3.connect("my_spotify_data.db")
             conn.row_factory = sqlite3.Row
             return conn, "sqlite"
         except sqlite3.Error as e:
