@@ -140,22 +140,28 @@ async function onSend(e) {
     try {
         const { status: httpStatus, data } = await awApi('/api/agent/chat',
             { message: text, session_id: AW.sessionId });
-        if (httpStatus !== 202) {  // refusal / wrapped / busy / budget / error
-            status.remove();
+        if (httpStatus !== 202) {  // refusal / wrapped / planning / busy / budget / error
             if (data.type === 'wrapped') {
+                status.remove();
                 addMsg('agent', esc(data.response));
                 openWrapped(data.period, data.force, data.start, data.end);
                 return;
             }
-            addMsg(data.type === 'refusal' || data.type === 'planning' ? 'agent' : 'system',
+            if (data.type === 'planning') {          // Planner: show + approve in-app
+                addMsg('agent', esc(data.response));
+                await pollPlan(status);
+                return;
+            }
+            status.remove();
+            addMsg(data.type === 'refusal' ? 'agent' : 'system',
                    esc(data.response || data.error || 'Something went wrong.'));
             return;
         }
         AW.sessionId = data.session_id;
         localStorage.setItem('aw_session_id', AW.sessionId);
         AW.runId = data.run_id;
-        const agent = data.route === 'playlist_request' ? 'DJ' : 'Analyst';
-        await pollRun(data.run_id, status, agent);
+        const AGENT = { playlist_request: 'DJ', data_question: 'Analyst' };
+        await pollRun(data.run_id, status, AGENT[data.route] || 'Agent');
     } catch (err) {
         status.remove();
         addMsg('system', 'Network error — is the server up?');
@@ -211,6 +217,43 @@ async function pollRun(runId, status, agent) {
             else renderResult(data.result);
             return;
         }
+    }
+}
+
+async function pollPlan(status) {
+    // Poll the Planner and render each block's playlist as it lands, with the
+    // same Approve/Reject card the DJ uses. Telegram is a bonus, not required.
+    const deadline = Date.now() + 5 * 60 * 1000;
+    const seen = new Set();
+    const setStatus = (txt) => {
+        const el = status.querySelector('.aw-status-text');
+        if (el) el.innerHTML = `<strong>Planner</strong> · ${esc(txt)}…`;
+    };
+    setStatus('reading your calendar');
+    for (;;) {
+        await new Promise(r => setTimeout(r, 2000));
+        if (Date.now() > deadline) {
+            status.remove(); addMsg('system', 'Planning timed out — try again.'); return;
+        }
+        let data;
+        try { data = (await awApi('/api/agent/plan/proposals')).data; } catch { continue; }
+        for (const p of (data.proposals || [])) {
+            if (seen.has(p.proposal_id)) continue;
+            seen.add(p.proposal_id);
+            const b = p.block || {};
+            addMsg('agent', `🗓 for <strong>${esc(b.title || 'your block')}</strong>` +
+                            (b.start ? ` at ${esc(b.start)}` : ''));
+            renderProposal(p.proposal_id, p.playlist);
+        }
+        document.getElementById('aw-chat-messages').scrollTop = 1e9;
+        if (!data.running) {
+            status.remove();
+            if (data.error) addMsg('system', esc(data.error));
+            else if (!seen.size) addMsg('agent',
+                "Nothing to soundtrack tomorrow — your calendar's clear or only has blocks where music doesn't fit.");
+            return;
+        }
+        setStatus(`building playlists (${seen.size} ready)`);
     }
 }
 

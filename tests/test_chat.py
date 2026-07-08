@@ -273,8 +273,14 @@ def test_plan_trigger_registers_proposals():
         deadline = _t.time() + 3
         while _t.time() < deadline and agents_api._planner_busy["on"]:
             _t.sleep(0.02)
-        assert len(sent) == 1                       # one Telegram notification sent
+        assert len(sent) == 1                       # one Telegram notification sent (bonus channel)
         assert any(v["name"] == "Run Fuel" for v in agents_api.PENDING_PROPOSALS.values())
+        # in-app path: proposals queued + exposed via /plan/proposals with their ids
+        pj = client.get("/api/agent/plan/proposals").get_json()
+        assert pj["running"] is False and len(pj["proposals"]) == 1
+        p0 = pj["proposals"][0]
+        assert p0["playlist"]["name"] == "Run Fuel" and p0["block"]["title"] == "Morning run"
+        assert p0["proposal_id"] in agents_api.PENDING_PROPOSALS   # approvable in-app
     finally:
         (agents_api.plan_tomorrow, agents_api.budget_left) = originals
         agents_api.telegram.send_proposal = orig_send

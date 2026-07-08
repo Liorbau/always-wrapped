@@ -60,6 +60,9 @@ RUNS = {}      # run_id -> {"harness", "kind", "done", "result", "error"}
 PENDING_PROPOSALS = {}
 PLAN_MSGS = {}          # proposal_id -> {chat_id, message_id} for Telegram edits
 _planner_busy = {"on": False}
+# Last Planner run, surfaced to the in-app chat so it can show + approve the
+# proposals in-app (Telegram is a bonus channel, not the only one).
+_plan_state = {"running": False, "date": None, "proposals": [], "error": None}
 _run_lock = threading.Lock()
 _active_run = {"id": None}
 
@@ -299,6 +302,9 @@ def activity():
             "steps": len(traj),
             "cost": round(run["harness"].metadata.get("cost_usd", 0), 4),
         }
+    elif _plan_state["running"]:  # headless Planner isn't a chat run — surface it too
+        active = {"agent": "planner", "doing": "planning tomorrow's playlists",
+                  "steps": len(_plan_state["proposals"]), "cost": 0}
     return jsonify({
         "active": active,
         "events": list(EVENTS)[-40:],
@@ -399,32 +405,39 @@ def _record_rejection(playlist, reason):
 
 
 def _run_planner():
-    """Background: plan tomorrow, register each proposal, notify over Telegram."""
+    """Background: plan tomorrow, register each proposal for BOTH the in-app chat
+    and Telegram. Account-read-only — the push still waits for an Approve."""
+    _plan_state.update(running=True, date=None, proposals=[], error=None)
     try:
         _event("planner", "reading tomorrow's calendar")
         out = plan_tomorrow()
         if "error" in out:
             _event("planner", f"stopped: {out['error']}")
+            _plan_state["error"] = out["error"]
             return
+        _plan_state["date"] = out.get("date")
         proposals = out.get("proposals", [])
         for p in proposals:
             proposal_id = uuid.uuid4().hex
             PENDING_PROPOSALS[proposal_id] = p["playlist"]
             block = p["block"]
+            # surface to the in-app chat
+            _plan_state["proposals"].append({"proposal_id": proposal_id, "block": block,
+                                             "playlist": p["playlist"], "response": p.get("response", "")})
             _event("planner", f"proposed '{p['playlist'].get('name','?')}' for {block['title']}")
-            resp = telegram.send_proposal(block, p["playlist"], proposal_id)
+            resp = telegram.send_proposal(block, p["playlist"], proposal_id)  # bonus channel
             msg = (resp or {}).get("result") or {}
             if msg.get("message_id"):
                 PLAN_MSGS[proposal_id] = {"chat_id": msg["chat"]["id"],
                                           "message_id": msg["message_id"]}
-            elif "error" in (resp or {}):
-                logger.warning("Telegram notify failed for %s: %s", proposal_id, resp["error"])
         _event("planner", f"done: {len(proposals)} playlist(s) awaiting approval")
         logger.info("Planner run: %d proposal(s), $%.4f.", len(proposals), out.get("cost_usd", 0))
     except Exception as exc:
         logger.exception("Planner run failed.")
         _event("planner", f"failed: {type(exc).__name__}")
+        _plan_state["error"] = "Planner error — check server logs."
     finally:
+        _plan_state["running"] = False
         _planner_busy["on"] = False
 
 
@@ -450,6 +463,14 @@ def trigger_planner():
         return ((jsonify({"error": "Daily budget reached."}), 429) if reason == "budget"
                 else (jsonify({"error": "A plan is already running."}), 409))
     return jsonify({"type": "planning"}), 202
+
+
+@agents_bp.route("/plan/proposals", methods=["GET"])
+def plan_proposals():
+    """The in-app chat polls this while/after a plan runs to render + approve the
+    proposals in-app (each carries its proposal_id for the existing /approve)."""
+    return jsonify({"running": _plan_state["running"], "date": _plan_state["date"],
+                    "error": _plan_state["error"], "proposals": _plan_state["proposals"]})
 
 
 def _fire_timer(row):
