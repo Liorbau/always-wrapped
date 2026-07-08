@@ -1,3 +1,8 @@
+// Always Wrapped — script.js (patched)
+// Changes vs original: esc() everywhere (XSS), skeleton loaders, track-meta
+// class instead of inline styles, lazy/alt images, local art fallback,
+// canvas pauses when tab hidden + respects prefers-reduced-motion.
+
 // Track the currently selected time range
 let currentTimeRange = 'all_time';
 
@@ -9,6 +14,48 @@ document.addEventListener('DOMContentLoaded', () => {
     loadInsight();
 });
 
+// --- HELPERS ---
+function esc(s) {
+    return (s == null ? '' : String(s))
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+
+function spotifyLink(card, kind, id) {
+    if (!id) return;
+    card.classList.add('track-link');
+    card.title = 'Open in Spotify';
+    card.addEventListener('click', () =>
+        window.open(`https://open.spotify.com/${kind}/${encodeURIComponent(id)}`, '_blank'));
+}
+
+function trackArt(url, rounded) {
+    if (url) {
+        return `<img src="${esc(url)}" class="track-img" alt="" loading="lazy"` +
+               (rounded ? ' style="border-radius:50%"' : '') + '>';
+    }
+    return rounded
+        ? '<div class="artist-icon"><i class="fas fa-microphone"></i></div>'
+        : '<div class="track-img-fallback"><i class="fas fa-music"></i></div>';
+}
+
+function skeletonRows(n, withRank = true) {
+    let html = '';
+    for (let i = 0; i < n; i++) {
+        html += `
+        <div class="skeleton-row">
+            ${withRank ? '<div class="skeleton" style="width:24px;height:16px"></div>' : ''}
+            <div class="skeleton" style="width:44px;height:44px"></div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+                <div class="skeleton" style="width:${55 + (i * 13) % 30}%;height:12px"></div>
+                <div class="skeleton" style="width:${25 + (i * 7) % 20}%;height:10px"></div>
+            </div>
+        </div>`;
+    }
+    return html;
+}
+
 // --- DROPDOWN LOGIC ---
 function toggleDropdown() {
     const dropdown = document.querySelector('.custom-dropdown-container');
@@ -18,7 +65,7 @@ function toggleDropdown() {
 function selectRange(value, text, element) {
     // 1. Update the button text
     document.getElementById('selected-range-text').innerText = text;
-    
+
     // 2. Update the visual "active" state in the list
     document.querySelectorAll('.dropdown-item').forEach(item => {
         item.classList.remove('active');
@@ -50,22 +97,25 @@ function initEnergyRibbons() {
     const canvas = document.getElementById('energy-ribbon');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let time = 0;
+    let rafId = null;
     const config = {
         lineCount: 40, amplitude: 150, frequency: 0.002, speed: 0.0002, color: '30, 215, 96'
     };
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        if (reducedMotion) drawFrame();  // static frame stays correct on resize
     }
     window.addEventListener('resize', resize);
-    resize();
-    function draw() {
+
+    function drawFrame() {
         ctx.fillStyle = '#050505';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.lineWidth = 1;
         const centerY = canvas.height / 2;
-        const scrollY = window.scrollY; 
+        const scrollY = window.scrollY;
         for (let i = 0; i < config.lineCount; i++) {
             const opacity = 1 - Math.abs((i - config.lineCount / 2) / (config.lineCount / 2));
             ctx.beginPath();
@@ -75,22 +125,40 @@ function initEnergyRibbons() {
                 y += Math.cos(x * config.frequency * 0.5 - time * 0.5) * (config.amplitude * 0.5);
                 const direction = i % 2 === 0 ? 1 : -0.5;
                 const parallaxShift = scrollY * 0.5 * direction * (1 + i * 0.01);
-                y += parallaxShift - (canvas.height * 0.2); 
-                y += (i - config.lineCount/2) * 8; 
+                y += parallaxShift - (canvas.height * 0.2);
+                y += (i - config.lineCount / 2) * 8;
                 if (x === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             }
             ctx.stroke();
         }
-        time += config.speed * 10;
-        requestAnimationFrame(draw);
     }
-    draw();
+
+    function loop() {
+        drawFrame();
+        time += config.speed * 10;
+        rafId = requestAnimationFrame(loop);
+    }
+
+    // Pause the 60fps loop while the tab is hidden — saves battery.
+    document.addEventListener('visibilitychange', () => {
+        if (reducedMotion) return;
+        if (document.hidden) {
+            if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        } else if (!rafId) {
+            loop();
+        }
+    });
+
+    resize();
+    if (reducedMotion) drawFrame();  // one static frame, no loop
+    else loop();
 }
 
 async function triggerRefresh() {
     const btn = document.getElementById('refresh-btn');
     const originalText = btn.innerHTML;
+    btn.style.width = btn.offsetWidth + 'px';  // lock size across text swaps
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> SYNCING...';
     btn.disabled = true;
     try {
@@ -117,6 +185,7 @@ async function triggerRefresh() {
 
 async function fetchRecentTracks() {
     const container = document.getElementById('recent-tracks-list');
+    container.innerHTML = skeletonRows(4, false);
     try {
         const response = await fetch('/api/history');
         const tracks = await response.json();
@@ -124,38 +193,39 @@ async function fetchRecentTracks() {
         tracks.forEach(track => {
             const card = document.createElement('div');
             card.className = 'track-item';
-            const imgUrl = track.album_image_url || 'https://via.placeholder.com/50';
             card.innerHTML = `
-                <img src="${imgUrl}" class="track-img">
-                <div><span class="song-name">${track.track_name}</span><span class="artist-name">${track.artist_name}</span></div>
+                ${trackArt(track.album_image_url, false)}
+                <div><span class="song-name">${esc(track.track_name)}</span><span class="artist-name">${esc(track.artist_name)}</span></div>
             `;
+            spotifyLink(card, 'track', track.track_id);
             container.appendChild(card);
         });
-    } catch (e) { container.innerHTML = '<p>Error loading.</p>'; }
+    } catch (e) { container.innerHTML = '<p class="loading">Error loading.</p>'; }
 }
 
 async function fetchTopSongs(timeRange = 'all_time') {
     const container = document.getElementById('top-songs-list');
+    container.innerHTML = skeletonRows(5);
     try {
         const response = await fetch(`/api/stats/top-songs?range=${timeRange}`);
         const tracks = await response.json();
         container.innerHTML = '';
         if (tracks.length === 0) {
-             container.innerHTML = '<p class="loading">No data for this period.</p>';
-             return;
+            container.innerHTML = '<p class="loading">No data for this period.</p>';
+            return;
         }
         tracks.forEach((track, index) => {
             const card = document.createElement('div');
             card.className = 'track-item';
-            const imgUrl = track.album_image_url || 'https://via.placeholder.com/50';
             card.innerHTML = `
-                <div class="rank-num">#${index + 1}</div>
-                <img src="${imgUrl}" class="track-img">
-                <div><span class="song-name">${track.track_name}</span><span style="color:#888; font-size:0.8rem">${track.play_count} plays</span><span style="color:#888; font-size:0.8rem; display:block">${track.artist_name}</span></div>
+                <div class="rank-num">${index + 1}</div>
+                ${trackArt(track.album_image_url, false)}
+                <div><span class="song-name">${esc(track.track_name)}</span><span class="track-meta">${esc(track.play_count)} plays</span><span class="track-meta">${esc(track.artist_name)}</span></div>
             `;
+            spotifyLink(card, 'track', track.track_id);
             container.appendChild(card);
         });
-    } catch (e) { container.innerHTML = '<p>Error loading.</p>'; }
+    } catch (e) { container.innerHTML = '<p class="loading">Error loading.</p>'; }
 }
 
 // --- INSIGHT CARD ---
@@ -251,10 +321,10 @@ async function performSearch(query) {
             div.innerHTML = `
                 <i class="fas ${icon} search-result-icon"></i>
                 <div class="search-result-info">
-                    <span class="search-result-name">${name}</span>
-                    <span class="search-result-type">${detail}</span>
+                    <span class="search-result-name">${esc(name)}</span>
+                    <span class="search-result-type">${esc(detail)}</span>
                 </div>
-                <span class="search-result-rank">#${item.rank}</span>
+                <span class="search-result-rank">#${esc(item.rank)}</span>
             `;
             resultsContainer.appendChild(div);
         });
@@ -282,27 +352,25 @@ window.addEventListener('click', (e) => {
 
 async function fetchTopArtists(timeRange = 'all_time') {
     const container = document.getElementById('top-artists-list');
+    container.innerHTML = skeletonRows(5);
     try {
         const response = await fetch(`/api/stats/top-artists?range=${timeRange}`);
         const artists = await response.json();
         container.innerHTML = '';
         if (artists.length === 0) {
-             container.innerHTML = '<p class="loading">No data for this period.</p>';
-             return;
+            container.innerHTML = '<p class="loading">No data for this period.</p>';
+            return;
         }
         artists.forEach((artist, index) => {
             const card = document.createElement('div');
             card.className = 'track-item';
-            const imgUrl = artist.artist_image_url;
-            const thumbHtml = imgUrl
-                ? `<img src="${imgUrl}" class="track-img" alt="">`
-                : `<div class="artist-icon"><i class="fas fa-microphone"></i></div>`;
             card.innerHTML = `
-                <div class="rank-num">#${index + 1}</div>
-                ${thumbHtml}
-                <div><span class="song-name">${artist.artist_name}</span><span style="color:#888; font-size:0.8rem">${artist.play_count} plays</span></div>
+                <div class="rank-num">${index + 1}</div>
+                ${trackArt(artist.artist_image_url, true)}
+                <div><span class="song-name">${esc(artist.artist_name)}</span><span class="track-meta">${esc(artist.play_count)} plays</span></div>
             `;
+            spotifyLink(card, 'artist', artist.artist_id);
             container.appendChild(card);
         });
-    } catch (e) { container.innerHTML = '<p>Error loading.</p>'; }
+    } catch (e) { container.innerHTML = '<p class="loading">Error loading.</p>'; }
 }

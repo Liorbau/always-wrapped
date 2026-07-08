@@ -1,11 +1,13 @@
 """Flask server providing REST API endpoints for Spotify listening history data.
 
 This module serves listening history and analytics endpoints, querying the
-SQLite database for recently played tracks and top songs.
+SQLite database for recently played tracks and top songs. v2 adds the agent
+chat endpoints (DJ / Analyst) with a HITL approve gate for playlist pushes.
 """
 
 import os
 import threading
+import time
 
 from flask import Flask, jsonify, render_template, request
 
@@ -13,12 +15,17 @@ from logging_config import configure_logger
 from collect_songs import start_collector_service
 from analytics import get_top_songs, get_top_artists, search_music, get_random_insight
 from db_config import get_db_connection
-from collect_songs import get_spotify_client, fetch_recent_tracks, save_tracks_to_db
+from authentication import auth_connection
+from collect_songs import fetch_recent_tracks, save_tracks_to_db
 from setup_db import create_database
+from agents.api import agents_bp, start_timer_thread
+from pipelines.wrapped import get_wrapped
 
 logger = configure_logger(__name__)
 
+
 app = Flask(__name__)
+app.register_blueprint(agents_bp)
 
 
 def enrich_top_artists_missing_images(artists):
@@ -37,11 +44,12 @@ def enrich_top_artists_missing_images(artists):
                 "artist_name": row["artist_name"],
                 "play_count": row["play_count"],
                 "artist_image_url": row.get("artist_image_url"),
+                "artist_id": row.get("artist_id"),
             }
             for row in artists
         ]
 
-    sp = get_spotify_client()
+    sp = auth_connection()
 
     ids_ordered = []
     seen_id = set()
@@ -114,6 +122,7 @@ def enrich_top_artists_missing_images(artists):
                 "artist_name": row["artist_name"],
                 "play_count": row["play_count"],
                 "artist_image_url": url,
+                "artist_id": aid,
             }
         )
     return enriched
@@ -123,6 +132,12 @@ def enrich_top_artists_missing_images(artists):
 def index():
     """Serves the main dashboard page."""
     return render_template("index.html")
+
+
+@app.route("/agents")
+def agents_page():
+    """Live observatory: the agent graph, what runs now, costs."""
+    return render_template("agents.html")
 
 
 @app.route("/api/history", methods=["GET"])
@@ -181,17 +196,48 @@ def search_api():
     return jsonify(results)
 
 
+@app.route("/api/wrapped", methods=["GET"])
+def wrapped_api():
+    period = request.args.get("period", "week")
+    force = request.args.get("force") == "1"
+    from agents.api import _event
+    start, end = request.args.get("start"), request.args.get("end")
+    if period == "custom":
+        import re as _re
+        if not (start and end and _re.match(r"^\d{4}-\d{2}-\d{2}$", start)
+                and _re.match(r"^\d{4}-\d{2}-\d{2}$", end) and start <= end):
+            return jsonify({"error": "Custom range needs valid start/end dates (YYYY-MM-DD, start <= end)."}), 400
+    try:
+        _event("wrapped", f"{period} edition requested" + (" (fresh look)" if force else ""))
+        edition = get_wrapped(period=period, force=force, start=start, end=end)
+        if edition.get("cost_usd") is not None and edition.get("generated_at"):
+            _event("wrapped", f"edition {edition.get('key')} ready "
+                              f"(${edition.get('cost_usd', 0):.3f})")
+        return jsonify(edition)
+    except Exception as exc:
+        logger.error("Wrapped generation failed: %s", exc)
+        return jsonify({"error": "Wrapped generation failed — check server logs."}), 500
+
+
+_last_refresh = {"ts": 0.0}
+
+
 @app.route("/api/refresh", methods=["POST"])
 def refresh_data():
-    """Forces a data sync with Spotify."""
+    """Forces a data sync with Spotify. Cooldown guards the Spotify quota
+    against hammering on the public demo (a sync covers 50 plays anyway)."""
+    if time.time() - _last_refresh["ts"] < 60:
+        return jsonify({"status": "success", "count": 0,
+                        "note": "Synced less than a minute ago."})
     try:
-        sp = get_spotify_client()
+        sp = auth_connection()
         if not sp:
             return jsonify({"error": "Failed to connect to Spotify"}), 500
 
         tracks = fetch_recent_tracks(sp)
         save_tracks_to_db(tracks, sp)
 
+        _last_refresh["ts"] = time.time()  # arm cooldown only after a real sync
         return jsonify({"status": "success", "count": len(tracks)})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
@@ -203,6 +249,7 @@ if __name__ == "__main__":
 
     collector_thread = threading.Thread(target=start_collector_service, daemon=True)
     collector_thread.start()
+    start_timer_thread()  # standing playlist timers (Telegram /timer)
 
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
