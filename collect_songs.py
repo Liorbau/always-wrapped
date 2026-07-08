@@ -2,31 +2,23 @@
 
 import time
 
-from dotenv import load_dotenv
-
 from db_config import get_db_connection, get_placeholder
 from authentication import auth_connection
 from logging_config import configure_logger
 
-load_dotenv()
-
 logger = configure_logger(__name__)
 
 
-def get_spotify_client():
-    """Retrieve an authenticated Spotify client.
+def _batch_artist_meta(spotify_client, artist_ids):
+    """Resolve Spotify artist id -> {"image_url": ..., "genres": ...}.
 
-    Returns:
-        spotipy.Spotify: An authenticated Spotify client instance.
+    Genres come from the same artists?ids= response as the images, so this
+    costs no extra API calls. Genres are comma-joined; "" means the artist
+    was fetched but Spotify lists no genres (vs NULL = never fetched).
     """
-    return auth_connection()
-
-
-def _batch_artist_image_urls(spotify_client, artist_ids):
-    """Resolve Spotify artist id -> profile image URL (largest image)."""
-    urls = {}
+    meta = {}
     if not spotify_client or not artist_ids:
-        return urls
+        return meta
     unique = list(dict.fromkeys(aid for aid in artist_ids if aid))
     for i in range(0, len(unique), 50):
         chunk = unique[i : i + 50]
@@ -36,10 +28,40 @@ def _batch_artist_image_urls(spotify_client, artist_ids):
                 if not artist:
                     continue
                 images = artist.get("images") or []
-                urls[artist["id"]] = images[0]["url"] if images else None
+                meta[artist["id"]] = {
+                    "image_url": images[0]["url"] if images else None,
+                    "genres": ", ".join(artist.get("genres") or []),
+                }
         except Exception as exc:
-            logger.warning("Batch artist image fetch failed: %s", exc)
-    return urls
+            logger.warning("Batch artist meta fetch failed: %s", exc)
+    return meta
+
+
+def build_track_row(item, id_to_meta):
+    """Flatten a Spotify recently-played item into a listening_history row.
+
+    Returns values in insert order: (played_at, track_id, track_name,
+    artist_name, album_name, album_image_url, artist_id, artist_image_url,
+    duration_ms, artist_genres, album_release_date).
+    """
+    track = item["track"]
+    album_images = track["album"].get("images") or []
+    primary_artist = track.get("artists", [{}])[0]
+    artist_id = primary_artist.get("id")
+    meta = id_to_meta.get(artist_id) or {}
+    return (
+        item["played_at"],
+        track["id"],
+        track["name"],
+        primary_artist.get("name"),
+        track["album"]["name"],
+        album_images[0]["url"] if album_images else None,
+        artist_id,
+        meta.get("image_url"),
+        track.get("duration_ms"),
+        meta.get("genres"),
+        track["album"].get("release_date"),
+    )
 
 
 def fetch_recent_tracks(spotify_client, limit=50):
@@ -71,14 +93,14 @@ def save_tracks_to_db(tracks, spotify_client=None):
         return
 
     try:
-        sp = spotify_client or get_spotify_client()
+        sp = spotify_client or auth_connection()
         artist_ids_for_batch = []
         for item in tracks:
             primary = item["track"].get("artists", [{}])[0]
             aid = primary.get("id")
             if aid:
                 artist_ids_for_batch.append(aid)
-        id_to_artist_img = _batch_artist_image_urls(sp, artist_ids_for_batch)
+        id_to_meta = _batch_artist_meta(sp, artist_ids_for_batch)
 
         conn, driver = get_db_connection()
         if not conn:
@@ -90,50 +112,25 @@ def save_tracks_to_db(tracks, spotify_client=None):
 
         new_songs_count = 0
 
+        columns = """(played_at, track_id, track_name, artist_name, album_name,
+                 album_image_url, artist_id, artist_image_url, duration_ms,
+                 artist_genres, album_release_date)"""
+        values = f"VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p}, {p}, {p}, {p}, {p})"
+        if driver == "postgres":
+            sql = f"""
+                INSERT INTO listening_history {columns}
+                {values}
+                ON CONFLICT (played_at) DO NOTHING
+            """
+        else:
+            sql = f"""
+                INSERT OR IGNORE INTO listening_history {columns}
+                {values}
+            """
+
         for item in tracks:
             track = item["track"]
-            played_at = item["played_at"]
-
-            if track["album"]["images"]:
-                image_url = track["album"]["images"][0]["url"]
-            else:
-                image_url = None
-
-            primary_artist = track.get("artists", [{}])[0]
-            artist_spotify_id = primary_artist.get("id")
-            artist_img_url = (
-                id_to_artist_img.get(artist_spotify_id) if artist_spotify_id else None
-            )
-
-            if driver == "postgres":
-                sql = f"""
-                    INSERT INTO listening_history 
-                    (played_at, track_id, track_name, artist_name, album_name,
-                     album_image_url, artist_id, artist_image_url)
-                    VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p}, {p})
-                    ON CONFLICT (played_at) DO NOTHING
-                """
-            else:
-                sql = f"""
-                INSERT OR IGNORE INTO listening_history 
-                (played_at, track_id, track_name, artist_name, album_name,
-                 album_image_url, artist_id, artist_image_url)
-                VALUES ({p}, {p}, {p}, {p}, {p}, {p}, {p}, {p})
-                """
-
-            cursor.execute(
-                sql,
-                (
-                    played_at,
-                    track["id"],
-                    track["name"],
-                    primary_artist.get("name"),
-                    track["album"]["name"],
-                    image_url,
-                    artist_spotify_id,
-                    artist_img_url,
-                ),
-            )
+            cursor.execute(sql, build_track_row(item, id_to_meta))
 
             if cursor.rowcount > 0:
                 new_songs_count += 1
@@ -155,7 +152,7 @@ def start_collector_service():
     """Runs the collector loop 24/7."""
     logger.info("Starting Spotify Collector Service...")
 
-    sp = get_spotify_client()
+    sp = auth_connection()
 
     if not sp:
         logger.error("Could not authenticate. Exiting collector.")

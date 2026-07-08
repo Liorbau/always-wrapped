@@ -1,20 +1,23 @@
 """Data extraction and analysis from db."""
 
-import logging
-import os
+import html
 import random
 
 from db_config import get_db_connection, get_placeholder
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
-logger = logging.getLogger(__name__)
 
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(CURRENT_DIR, "my_spotify_data.db")
+def _time_filter(driver, time_range):
+    """SQL predicate limiting played_at to the given range ('' = all time)."""
+    if time_range == "7days":
+        if driver == "postgres":
+            return " AND played_at >= (NOW() - INTERVAL '7 days')::text"
+        return " AND played_at >= datetime('now', '-7 days')"
+    if time_range == "ytd":
+        if driver == "postgres":
+            return " AND played_at >= (date_trunc('year', NOW()))::text"
+        return " AND played_at >= datetime('now', 'start of year')"
+    return ""
+
 
 
 def get_top_songs(limit=5, time_range="all_time"):
@@ -32,21 +35,13 @@ def get_top_songs(limit=5, time_range="all_time"):
         track_name, 
         artist_name, 
         album_image_url, 
-        COUNT(*) as play_count
+        COUNT(*) as play_count,
+        MAX(track_id) as track_id
     FROM listening_history
     WHERE 1=1 
     """
 
-    if time_range == "7days":
-        if driver == "postgres":
-            query += " AND played_at >= (NOW() - INTERVAL '7 days')::text"
-        else:
-            query += " AND played_at >= datetime('now', '-7 days')"
-    elif time_range == "ytd":
-        if driver == "postgres":
-            query += " AND played_at >= (date_trunc('year', NOW()))::text"
-        else:
-            query += " AND played_at >= datetime('now', 'start of year')"
+    query += _time_filter(driver, time_range)
 
     query += f"""
     GROUP BY track_name, artist_name, album_image_url
@@ -83,16 +78,7 @@ def get_top_artists(limit=5, time_range="all_time"):
     WHERE 1=1
     """
 
-    if time_range == "7days":
-        if driver == "postgres":
-            query += " AND played_at >= (NOW() - INTERVAL '7 days')::text"
-        else:
-            query += " AND played_at >= datetime('now', '-7 days')"
-    elif time_range == "ytd":
-        if driver == "postgres":
-            query += " AND played_at >= (date_trunc('year', NOW()))::text"
-        else:
-            query += " AND played_at >= datetime('now', 'start of year')"
+    query += _time_filter(driver, time_range)
 
     query += f"""
     GROUP BY artist_name
@@ -134,7 +120,7 @@ def get_random_insight():
             i = random.randint(0, len(songs) - 1)
             insights.append(
                 {
-                    "text": f"<b>{songs[i][0]}</b> by {songs[i][1]} is your "
+                    "text": f"<b>{html.escape(songs[i][0])}</b> by {html.escape(songs[i][1])} is your "
                     f"<b>#{i + 1}</b> most played song with {songs[i][2]} plays",
                     "icon": "music",
                 }
@@ -154,17 +140,14 @@ def get_random_insight():
             i = random.randint(0, len(artists) - 1)
             insights.append(
                 {
-                    "text": f"<b>{artists[i][0]}</b> is your <b>#{i + 1}</b> "
+                    "text": f"<b>{html.escape(artists[i][0])}</b> is your <b>#{i + 1}</b> "
                     f"most listened artist with {artists[i][1]} plays",
                     "icon": "microphone",
                 }
             )
 
         # --- Insight: "miss you" — all-time top artist absent from last 7 days ---
-        if driver == "postgres":
-            recent_filter = " AND played_at >= (NOW() - INTERVAL '7 days')::text"
-        else:
-            recent_filter = " AND played_at >= datetime('now', '-7 days')"
+        recent_filter = _time_filter(driver, "7days")
 
         cursor.execute(
             f"""
@@ -179,9 +162,9 @@ def get_random_insight():
         for idx, a in enumerate(artists[:10] if artists else []):
             if a[0] not in recent_set:
                 msgs = [
-                    f"<b>{a[0]}</b> misses you! Your <b>#{idx + 1}</b> artist all time but nowhere this week",
-                    f'Hey! <b>{a[0]}</b> says: "Remember me? I\'m your <b>#{idx + 1}</b> artist!"',
-                    f"<b>{a[0]}</b> is feeling lonely — your <b>#{idx + 1}</b> all time but MIA this week",
+                    f"<b>{html.escape(a[0])}</b> misses you! Your <b>#{idx + 1}</b> artist all time but nowhere this week",
+                    f'Hey! <b>{html.escape(a[0])}</b> says: "Remember me? I\'m your <b>#{idx + 1}</b> artist!"',
+                    f"<b>{html.escape(a[0])}</b> is feeling lonely — your <b>#{idx + 1}</b> all time but MIA this week",
                 ]
                 insights.append({"text": random.choice(msgs), "icon": "heart-crack"})
                 break
@@ -253,17 +236,7 @@ def search_music(query, time_range="all_time"):
     p = get_placeholder(driver)
     results = []
 
-    time_filter = ""
-    if time_range == "7days":
-        if driver == "postgres":
-            time_filter = " AND played_at >= (NOW() - INTERVAL '7 days')::text"
-        else:
-            time_filter = " AND played_at >= datetime('now', '-7 days')"
-    elif time_range == "ytd":
-        if driver == "postgres":
-            time_filter = " AND played_at >= (date_trunc('year', NOW()))::text"
-        else:
-            time_filter = " AND played_at >= datetime('now', 'start of year')"
+    time_filter = _time_filter(driver, time_range)
 
     cursor = conn.cursor()
     rank_str = query.strip().lstrip("#")
