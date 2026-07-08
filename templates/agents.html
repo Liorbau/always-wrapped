@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Always Wrapped · Agents</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='agents.css') }}">
+</head>
+<body>
+    <nav class="ag-nav">
+        <a href="/" class="ag-back"><i class="fas fa-arrow-left"></i> dashboard</a>
+        <div class="ag-title">AGENT OBSERVATORY<span class="ag-dot">.</span></div>
+        <div class="ag-live"><span class="ag-pulse"></span> LIVE</div>
+    </nav>
+
+    <div class="ag-layout">
+        <div class="ag-board" id="ag-board">
+            <svg class="ag-edges" id="ag-edges"></svg>
+
+
+
+            <div class="ag-node ag-agent" id="node-dj" data-x="30" data-y="20">
+                <i class="fas fa-headphones"></i><b>DJ</b><span>playlist loop + verifier</span></div>
+            <div class="ag-node ag-agent" id="node-analyst" data-x="30" data-y="42">
+                <i class="fas fa-magnifying-glass-chart"></i><b>Analyst</b><span>verified Q&amp;A</span></div>
+            <div class="ag-node ag-pipe" id="node-wrapped" data-x="30" data-y="64">
+                <i class="fas fa-bolt"></i><b>Wrapped</b><span>pipeline (not an agent)</span></div>
+
+            <div class="ag-node ag-agent ag-headless" id="node-evaluator" data-x="12" data-y="86">
+                <i class="fas fa-brain"></i><b>Evaluator</b><span>headless learner</span>
+                <button id="ag-run-eval" title="Trigger a learning pass now">
+                    <i class="fas fa-play"></i> run now</button></div>
+            <div class="ag-node ag-agent ag-headless" id="node-planner" data-x="44" data-y="86">
+                <i class="fas fa-calendar-day"></i><b>Planner</b><span>calendar &rarr; playlists</span>
+                <button id="ag-run-plan" title="Plan tomorrow's music now">
+                    <i class="fas fa-play"></i> plan my day</button></div>
+
+            <div class="ag-node ag-tool" id="node-query_history" data-x="72" data-y="12">
+                <i class="fas fa-database"></i><b>query_history</b><span>guarded SQL</span></div>
+            <div class="ag-node ag-tool" id="node-search_spotify" data-x="72" data-y="28">
+                <i class="fas fa-magnifying-glass"></i><b>search_spotify</b><span>catalog</span></div>
+            <div class="ag-node ag-tool" id="node-artist_top_tracks" data-x="72" data-y="44">
+                <i class="fas fa-star"></i><b>artist_top_tracks</b><span>discovery</span></div>
+            <div class="ag-node ag-tool" id="node-discover_new_tracks" data-x="72" data-y="76">
+                <i class="fas fa-compass"></i><b>discover_new_tracks</b><span>verified-new, 1 call</span></div>
+            <div class="ag-node ag-tool" id="node-get_audio_features" data-x="72" data-y="60">
+                <i class="fas fa-wave-square"></i><b>audio_features</b><span>mood metrics</span></div>
+            <div class="ag-node ag-tool" id="node-calendar" data-x="72" data-y="92">
+                <i class="fas fa-calendar"></i><b>calendar</b><span>tomorrow's blocks</span></div>
+
+        </div>
+
+        <aside class="ag-feed-panel">
+            <h3>LIVE FEED</h3>
+            <div id="ag-feed"></div>
+        </aside>
+    </div>
+
+    <footer class="ag-costbar">
+        <div id="ag-active-line"><i class="fas fa-moon"></i> agents idle — talk to the chat on the dashboard</div>
+        <div class="ag-costs">
+            <span>run <b id="ag-run-cost">$0.000</b></span>
+            <span>today <b id="ag-day-cost">$0.00</b> / <span id="ag-budget">$—</span></span>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='agents.js') }}"></script>
+</body>
+</html>
