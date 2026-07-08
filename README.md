@@ -16,12 +16,18 @@
     <img src="https://img.shields.io/badge/html5-%23E34F26.svg?style=for-the-badge&logo=html5&logoColor=white" />
     <img src="https://img.shields.io/badge/css3-%231572B6.svg?style=for-the-badge&logo=css3&logoColor=white" />
     <img src="https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E" />
+    <img src="https://img.shields.io/badge/LiteLLM-6E56CF?style=for-the-badge" />
+    <img src="https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white" />
+    <img src="https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" />
+    <img src="https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white" />
 </p>
 </div>
 
 <br />
 
 A real-time Spotify listening history tracker and dashboard. Unlike the annual Spotify Wrapped, this runs 24/7, and provides a live "Always On" dashboard of your music habits using a self-healing background collector.
+
+Under the hood it's a multi-agent system - a smart listening analyzer and playlist-building DJ you can chat with on the web or Telegram.
 
 ## Quick setup
 ### 1. Installation
