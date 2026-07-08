@@ -24,3 +24,7 @@ agent-runs/
 
 # Fellowship workshop slides (reference only, not shipped)
 *.pdf
+
+# Evidence/submission folder — local package (holds a ~700MB screen recording
+# + curated run logs). Never committed; travels with the submission, not the repo.
+evidence/
