@@ -55,6 +55,14 @@ def test_due_window():
         assert timers.due_timers(now=wed) == []
 
 
+def test_daily_due():
+    d = datetime.datetime(2026, 7, 8, 21, 5)  # 5 min after 21:00
+    assert timers.daily_due("21:00", d, last_date=None)          # in window, not fired
+    assert not timers.daily_due("21:00", d, last_date="2026-07-08")  # already fired today
+    assert not timers.daily_due("21:00", datetime.datetime(2026, 7, 8, 20, 59), None)  # too early
+    assert not timers.daily_due("21:00", datetime.datetime(2026, 7, 8, 22, 1), None)   # past grace
+
+
 def test_command_roundtrip():
     with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
         _patch_db(tmp.name)
@@ -70,6 +78,7 @@ def test_command_roundtrip():
 
 
 if __name__ == "__main__":
+    test_daily_due()
     test_expand_days()
     test_parse_timer()
     test_due_window()

@@ -25,6 +25,8 @@ def test_router_classifies_and_falls_back():
     assert route_message("give me a cake recipe", llm=llm) == "off_topic"
     llm = FakeLLM([{"content": '{"route": "playlist_request", "satisfied": true}'}])
     assert route_message("build me a workout mix", llm=llm) == "playlist_request"
+    llm = FakeLLM([{"content": '{"route": "plan_day", "satisfied": true}'}])
+    assert route_message("plan my day", llm=llm) == "plan_day"
     # garbage output falls back to the safe read-only route
     llm = FakeLLM([{"content": "not json at all"}])
     assert route_message("what did I play?", llm=llm) == "data_question"
@@ -279,6 +281,30 @@ def test_plan_trigger_registers_proposals():
         agents_api.PENDING_PROPOSALS.clear()
 
 
+def test_telegram_plan_command():
+    """/plan from the owner triggers the Planner; from anyone else it's ignored."""
+    client = server.app.test_client()
+    os.environ["TELEGRAM_WEBHOOK_SECRET"] = "s3cr3t"
+    os.environ["TELEGRAM_CHAT_ID"] = "42"
+    os.environ.pop("TELEGRAM_BOT_TOKEN", None)  # telegram send is a no-op
+    calls = []
+    orig = agents_api._start_planner_run
+    agents_api._start_planner_run = lambda: (calls.append(1), (True, ""))[1]
+    try:
+        hdr = {"X-Telegram-Bot-Api-Secret-Token": "s3cr3t"}
+        r = client.post("/api/agent/telegram/webhook",
+                        json={"message": {"chat": {"id": 42}, "text": "/plan"}}, headers=hdr)
+        assert r.status_code == 200 and len(calls) == 1
+        # non-owner /plan -> ignored, planner NOT started
+        r2 = client.post("/api/agent/telegram/webhook",
+                         json={"message": {"chat": {"id": 999}, "text": "/plan"}}, headers=hdr)
+        assert r2.get_json().get("type") == "ignored" and len(calls) == 1
+    finally:
+        agents_api._start_planner_run = orig
+        os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
+        os.environ.pop("TELEGRAM_CHAT_ID", None)
+
+
 if __name__ == "__main__":
     test_router_classifies_and_falls_back()
     test_router_followup_context()
@@ -288,4 +314,5 @@ if __name__ == "__main__":
     test_observatory_endpoints()
     test_telegram_webhook_secret_and_actions()
     test_plan_trigger_registers_proposals()
+    test_telegram_plan_command()
     print("OK: all chat tests passed")
