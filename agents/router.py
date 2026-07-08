@@ -13,7 +13,7 @@ from logging_config import configure_logger
 
 logger = configure_logger(__name__)
 
-ROUTES = ("playlist_request", "data_question", "wrapped_request", "off_topic")
+ROUTES = ("playlist_request", "data_question", "wrapped_request", "plan_day", "off_topic")
 
 ROUTER_PROMPT = """You route messages for a Spotify listening-history companion app.
 Classify the user's message into exactly one route:
@@ -23,6 +23,10 @@ Classify the user's message into exactly one route:
   artists, songs, genres, or anything music-related
 - "wrapped_request": they want to see their Wrapped / recap / summary story
   ("show my weekly wrapped", "monthly recap", "fresh look for my wrapped")
+- "plan_day": they want playlists planned for their day/tomorrow FROM THEIR
+  CALENDAR ("plan my day", "plan tomorrow", "make playlists for my day",
+  "soundtrack my schedule"). Distinct from playlist_request, which is a single
+  ad-hoc playlist with no calendar involved.
 - "off_topic": anything else (recipes, code, general knowledge, chit-chat
   unrelated to music)
 
@@ -34,7 +38,7 @@ right after a playlist exchange is still off_topic.
 Arithmetic, coding, general knowledge and anything not about THIS user's music
 are ALWAYS off_topic, even mid-conversation: "how much is 4*16?" -> off_topic.
 
-Reply with JSON only: {"route": "<one of the three>", "satisfied": true}
+Reply with JSON only: {"route": "<one of the routes above>", "satisfied": true}
 """
 
 

@@ -30,6 +30,16 @@ def _is_meeting(title):
     return any(m in low for m in MEETING_MARKERS)
 
 
+def _user_tz():
+    """The user's timezone (USER_TZ, default Asia/Jerusalem) so 'tomorrow' means
+    their tomorrow, not UTC's — else late-night events land on the wrong day."""
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo(os.getenv("USER_TZ", "Asia/Jerusalem"))
+    except Exception:  # tz database missing — degrade to UTC
+        return timezone.utc
+
+
 def tomorrow_blocks(ics_text=None, now=None):
     """Return tomorrow's non-meeting events as
     [{'title', 'start', 'end', 'minutes'}], sorted by start time.
@@ -52,9 +62,11 @@ def tomorrow_blocks(ics_text=None, now=None):
     except Exception as exc:
         return {"error": f"Calendar parse failed: {type(exc).__name__}"}
 
-    now = now or datetime.now(timezone.utc)
+    tz = _user_tz()
+    now = now or datetime.now(tz)
+    now = now.astimezone(tz) if now.tzinfo else now.replace(tzinfo=tz)
     day = (now + timedelta(days=1)).date()
-    start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+    start = datetime(day.year, day.month, day.day, tzinfo=tz)
     end = start + timedelta(days=1)
 
     events = recurring_ical_events.of(cal).between(start, end)
@@ -65,7 +77,7 @@ def tomorrow_blocks(ics_text=None, now=None):
             continue
         s, e = ev.get("DTSTART").dt, ev.get("DTEND").dt if ev.get("DTEND") else None
         # normalise date-only (all-day) events to naive comparison
-        s_dt = s if isinstance(s, datetime) else datetime(s.year, s.month, s.day, tzinfo=timezone.utc)
+        s_dt = s if isinstance(s, datetime) else datetime(s.year, s.month, s.day, tzinfo=tz)
         minutes = int((e - s).total_seconds() // 60) if e and isinstance(e, datetime) else None
         blocks.append({
             "title": title,

@@ -147,7 +147,7 @@ async function onSend(e) {
                 openWrapped(data.period, data.force, data.start, data.end);
                 return;
             }
-            addMsg(data.type === 'refusal' ? 'agent' : 'system',
+            addMsg(data.type === 'refusal' || data.type === 'planning' ? 'agent' : 'system',
                    esc(data.response || data.error || 'Something went wrong.'));
             return;
         }
