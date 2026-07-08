@@ -8,7 +8,7 @@ reproducible) > present (code) > asserted (prose).
 
 | Item | What it demonstrates | Tier |
 |---|---|---|
-| `screen-recording.mov` | End-to-end walkthrough of the live app / agents | demonstrated |
+| [live app](https://always-wrapped.onrender.com) | End-to-end walkthrough of the live app / agents | demonstrated |
 | `test-output.txt` | Full test suite green (11/11) at a named commit | demonstrated |
 | `run-summary.md` | Table over **108 real agent runs** — steps, tools, cost, status | demonstrated |
 | `runs/*.json` | 10 most-iterative run trajectories (12–16 steps each), full plan→act→observe loops with live LLM + tool calls | demonstrated |
@@ -31,10 +31,8 @@ calls). Track/artist names in tool results are untrusted input, fenced as data.
 
 ## Notes
 
-- The recording is large (~700 MB) so it is **not committed to git** — it lives
-  in this folder locally and travels with the submission package.
 - The complete set of 108 run logs is in the gitignored `agent-runs/` dir; the
   10 here are the most iterative, chosen from `run-summary.md`.
 - Account writes (playlist push) are HITL-gated; the scheduled/headless paths are
   read-only on the Spotify account. See `hitl/` for the approve/reject record.
-</content>
+- The live app at https://always-wrapped.onrender.com is the demo surface.

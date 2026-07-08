@@ -4,12 +4,10 @@
 agentic layer that turns your own history into playlists — on request, on a
 schedule, and learning from what you keep.**
 
-- **Live app:** https://always-wrapped.onrender.com
-- **Demo recording:** `evidence/screen-recording.mov` (~12 min, in the submission
-  package). Shareable link: **[ADD LINK — upload to Drive/YouTube unlisted]**
-- **Evidence folder:** [`evidence/`](evidence/) — 108 real run logs, curated
-  trajectories, HITL push/reject records, green test suite. See
-  [`evidence/README.md`](evidence/README.md).
+- **Live app (demo):** https://always-wrapped.onrender.com
+- **Evidence folder:** [`evidence/`](evidence/) — curated run trajectories, a
+  summary over all 108 real runs, HITL push/reject records, and green test
+  output. See [`evidence/README.md`](evidence/README.md).
 
 ---
 
@@ -111,7 +109,7 @@ defensible core; it can't be copied from a public API.
 
 ### Complexity (5) / Demo (5)
 Multi-agent system with a learning loop, dual persistence, and a live deployment;
-demo via the recording + live URL + reproducible runs.
+demo via the live URL + reproducible runs (`evidence/runs/`).
 
 ---
 
@@ -130,5 +128,3 @@ counts, tokens, cost, terminal status).
   adapter is the tested path.
 - Researcher/open-web discovery is deferred until real discovery is added, behind
   a prompt-injection boundary.
-- The demo recording is ~700 MB, so it ships in the submission package, not git.
-</content>
