@@ -1,10 +1,58 @@
+/* =====================================================================
+   ALWAYS WRAPPED — style.css (patched, matches mockup 1b)
+   Drop-in replacement for static/style.css.
+
+   Companion edits (outside this file):
+   1. index.html — load the weights actually used:
+      family=Montserrat:wght@400;500;600;700;800;900
+   2. index.html — optional hero subtitle (styles below):
+      listening history, tracked all year long. Not just in December.</p>
+   3. script.js — the inline styles it injects (color:#888) override CSS;
+      replace with class="track-meta" (styled below). Also swap
+      "Loading stats..." for the .skeleton-row markup at the bottom.
+   4. wrapped.css / chat.css — the `button` reset is now scoped, so their
+      `!important` overrides can be removed at leisure (they still work).
+   ===================================================================== */
+
+/* --- DESIGN TOKENS --- */
+:root {
+    --green: #1ed760;
+    --green-hover: #1fdf64;
+    --bg: #050505;
+    --surface: rgba(255, 255, 255, 0.03);
+    --surface-menu: #1a1a1a;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --text-1: #ffffff;
+    --text-2: #a7a7a7;   /* secondary — passes AA on #050505 */
+    --text-3: #6f6f6f;   /* tertiary  — captions, placeholders  */
+    --radius-row: 10px;
+    --radius-menu: 12px;
+    --radius-card: 16px;
+    --radius-pill: 9999px;
+}
+
 /* --- BASE SETTINGS --- */
 body {
-    background-color: #050505;
-    color: #FFFFFF;
+    background-color: var(--bg);
+    color: var(--text-1);
     font-family: 'Montserrat', sans-serif;
     margin: 0;
     overflow-x: hidden;
+}
+
+/* Buttons inherit the brand font (they defaulted to the system font). */
+button {
+    font-family: inherit;
+}
+
+/* Keyboard focus, everywhere interactive. */
+button:focus-visible,
+input:focus-visible,
+.dropdown-trigger:focus-visible,
+[onclick]:focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: 2px;
 }
 
 /* --- CANVAS BACKGROUND --- */
@@ -15,7 +63,7 @@ body {
     width: 100%;
     height: 100vh;
     z-index: -1;
-    background-color: #050505;
+    background-color: var(--bg);
 }
 
 /* --- NAVIGATION --- */
@@ -23,7 +71,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 30px 50px;
+    padding: 26px 50px;
     position: absolute;
     top: 0;
     left: 0;
@@ -32,17 +80,19 @@ body {
     z-index: 10;
 }
 
-.logo { font-weight: 900; font-size: 1.5rem; letter-spacing: -1px; }
-.green-dot { color: #1ed760; }
-.nav-links a { 
-    color: white; text-decoration: none; margin-left: 30px; 
+.logo {
+    font-family: 'Anton', 'Montserrat', sans-serif;
+    font-weight: 400; letter-spacing: 0.5px; font-weight: 900; font-size: 1.4rem; letter-spacing: -0.5px; }
+.green-dot { color: var(--green); }
+.nav-links a {
+    color: var(--text-1); text-decoration: none; margin-left: 30px;
     font-size: 0.8rem; font-weight: 700; letter-spacing: 1px;
+    transition: color 0.15s;
 }
-.nav-links a:hover { color: #1ed760; }
+.nav-links a:hover { color: var(--green); }
 
 /* --- HERO SECTION --- */
 .container {
-    /* Use a fluid width up to a sensible max so large screens don't show huge empty margins */
     max-width: 1400px;
     width: min(94%, 1400px);
     margin: 0 auto;
@@ -51,7 +101,7 @@ body {
 }
 
 .hero {
-    min-height: 90vh; 
+    min-height: 90vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -59,104 +109,96 @@ body {
 }
 
 .hero-title {
+    font-family: 'Montserrat', sans-serif;
     font-size: clamp(2.5rem, 5vw + 0.5rem, 5.5rem);
     font-weight: 900;
-    line-height: 0.9;
+    line-height: 0.92;
     letter-spacing: -2px;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
 }
 
 .gradient-text {
     color: transparent;
-    background: linear-gradient(90deg, #ffffff, #1ed760);
+    background: linear-gradient(90deg, #ffffff, var(--green));
     -webkit-background-clip: text;
     background-clip: text;
 }
 
-.hero-subtitle {
-    font-size: 1.2rem;
-    color: #888;
-    max-width: 600px;
-    font-weight: 300;
-    margin-bottom: 40px;
-}
 
 /* --- BUTTONS & DROPDOWN WRAPPER --- */
-.hero-buttons { 
-    display: flex; 
-    gap: 20px; 
-    align-items: center; 
+.hero-buttons {
+    display: flex;
+    gap: 16px;
+    align-items: center;
 }
 
-button {
-    padding: 15px 30px;
-    border-radius: 50px;
+/* Scoped — no longer leaks into the chat widget / wrapped menu. */
+.hero-buttons button {
+    padding: 15px 28px;
+    border-radius: var(--radius-pill);
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.95rem;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s, background 0.2s;
     letter-spacing: 1px;
 }
 
 #refresh-btn {
-    background: #1ed760;
+    background: var(--green);
     border: none;
-    color: black;
+    color: #000;
 }
 
-#refresh-btn:hover { transform: scale(1.05); background: #1fdf64; }
+#refresh-btn:hover { transform: scale(1.05); background: var(--green-hover); }
 
 /* --- CUSTOM DROPDOWN --- */
 .custom-dropdown-container {
-    position: relative; 
+    position: relative;
     width: 200px;
 }
 
-/* The "Button" part */
 .dropdown-trigger {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.3);
-    color: white;
-    padding: 15px 25px;
-    border-radius: 50px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-strong);
+    color: var(--text-1);
+    padding: 15px 24px;
+    border-radius: var(--radius-pill);
     font-weight: 700;
+    font-size: 0.95rem;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: all 0.2s;
+    transition: border-color 0.15s, background 0.15s;
     user-select: none;
 }
 
 .dropdown-trigger:hover {
-    border-color: #1ed760;
-    background: rgba(255,255,255,0.05);
+    border-color: var(--green);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .arrow-icon {
-    font-size: 0.8rem;
-    color: #1ed760;
+    font-size: 0.75rem;
+    color: var(--green);
     transition: transform 0.3s;
 }
 
-/* Rotate arrow when open */
 .custom-dropdown-container.open .arrow-icon {
     transform: rotate(180deg);
 }
 
-/* The "List" part */
 .dropdown-menu {
     position: absolute;
     top: 115%;
     left: 0;
     width: 100%;
-    background: #181818;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 16px; 
-    padding: 8px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    
-    /* Animation: Hide/Show */
+    box-sizing: border-box;
+    background: var(--surface-menu);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-menu);
+    padding: 6px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
@@ -164,32 +206,31 @@ button {
     z-index: 100;
 }
 
-/* Open State */
 .custom-dropdown-container.open .dropdown-menu {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
 }
 
-/* Option Items */
 .dropdown-item {
-    padding: 12px 16px;
-    border-radius: 10px;
+    padding: 11px 14px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
-    color: #b3b3b3;
-    transition: all 0.2s;
+    color: var(--text-2);
+    transition: background 0.15s, color 0.15s;
 }
 
 .dropdown-item:hover {
-    background: rgba(255,255,255,0.1);
-    color: white;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-1);
 }
 
 .dropdown-item.active {
-    color: #1ed760; 
-    background: rgba(30, 215, 96, 0.1); 
+    color: var(--green);
+    font-weight: 600;
+    background: rgba(30, 215, 96, 0.1);
 }
 
 /* --- SEARCH BAR --- */
@@ -202,35 +243,35 @@ button {
 .search-input-wrapper {
     display: flex;
     align-items: center;
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 50px;
-    padding: 15px 25px;
-    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-pill);
+    padding: 15px 24px;
+    transition: border-color 0.15s, box-shadow 0.15s;
     box-sizing: border-box;
     width: 100%;
 }
 
 .search-input-wrapper:focus-within {
-    border-color: #1ed760;
-    background: rgba(255,255,255,0.05);
+    border-color: var(--green);
+    box-shadow: 0 0 0 4px rgba(30, 215, 96, 0.15);
 }
 
-.search-icon { color: #888; margin-right: 10px; font-size: 0.9rem; }
+.search-icon { color: var(--text-2); margin-right: 10px; font-size: 0.85rem; }
 
 #search-input {
     background: transparent;
     border: none;
     outline: none;
-    color: white;
+    color: var(--text-1);
     font-family: 'Montserrat', sans-serif;
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: 0.95rem;
+    font-weight: 500;
     flex: 1;
     width: 0;
 }
 
-#search-input::placeholder { color: #666; font-weight: 700; }
+#search-input::placeholder { color: var(--text-2); font-weight: 500; }
 
 .search-dropdown {
     position: absolute;
@@ -238,11 +279,13 @@ button {
     right: 0;
     width: 100%;
     box-sizing: border-box;
-    background: #181818;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 16px;
+    background: var(--surface-menu);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-menu);
     padding: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    max-height: 360px;          /* long result lists scroll, not overflow */
+    overflow-y: auto;
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);
@@ -261,7 +304,7 @@ button {
     gap: 4px;
     margin-bottom: 10px;
     padding-bottom: 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .search-tab {
@@ -272,133 +315,204 @@ button {
     cursor: pointer;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #888;
-    transition: all 0.2s;
+    color: var(--text-2);
+    transition: background 0.15s, color 0.15s;
 }
 
-.search-tab:hover { background: rgba(255,255,255,0.08); color: white; }
-.search-tab.active { color: #1ed760; background: rgba(30, 215, 96, 0.1); }
+.search-tab:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-1); }
+.search-tab.active { color: var(--green); background: rgba(30, 215, 96, 0.1); }
 
 .search-result-item {
     display: flex;
     align-items: center;
     padding: 10px 12px;
-    border-radius: 10px;
+    border-radius: var(--radius-row);
     gap: 12px;
+    transition: background 0.15s;
 }
+.search-result-item:hover { background: rgba(255, 255, 255, 0.05); }
 
-.search-result-icon { color: #1ed760; font-size: 0.9rem; width: 20px; text-align: center; }
+.search-result-icon { color: var(--green); font-size: 0.9rem; width: 20px; text-align: center; }
 
 .search-result-info { flex: 1; }
 .search-result-name { display: block; font-weight: 600; font-size: 0.85rem; }
-.search-result-type { display: block; color: #666; font-size: 0.7rem; font-weight: 500; text-transform: uppercase; }
+.search-result-type { display: block; color: var(--text-2); font-size: 0.7rem; font-weight: 500; text-transform: uppercase; }
 
-.search-result-rank { color: #1ed760; font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+.search-result-rank { color: var(--green); font-weight: 700; font-size: 0.85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-.search-no-results { text-align: center; color: #666; font-size: 0.85rem; padding: 20px 10px; }
+.search-no-results { text-align: center; color: var(--text-2); font-size: 0.85rem; padding: 20px 10px; }
 
 /* --- INSIGHT CARD --- */
 .insight-card {
-    margin-top: 30px;
+    margin-top: 32px;
     display: inline-flex;
     align-items: center;
     padding: 14px 0;
     cursor: default;
     overflow: hidden;
-    max-width: 600px;
+    height: 4.6em;
+    max-width: 620px;
 }
 
 .insight-content {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
 }
 
-.insight-icon { color: #1ed760; font-size: 1rem; flex-shrink: 0; }
+.insight-icon { color: var(--green); font-size: 0.95rem; flex-shrink: 0; }
 
 #insight-text {
-    color: #b3b3b3;
-    font-size: 0.85rem;
+    color: var(--text-2);
+    font-size: 0.9rem;
     font-weight: 500;
-    line-height: 1.4;
+    line-height: 1.5;
 }
 
-#insight-text b { color: white; font-weight: 700; }
+#insight-text b { color: var(--text-1); font-weight: 700; }
 
 /* --- CARDS & GRIDS --- */
 .stats-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 30px;
-    margin-bottom: 30px;
+    gap: 24px;
+    margin-bottom: 24px;
     align-items: stretch;
 }
 
 .glass-card {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 30px;
-    
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 28px;
+
     display: flex;
     flex-direction: column;
-    height: 100%; 
+    height: 100%;
     box-sizing: border-box;
 }
 
 h2 {
-    color: white;
-    font-size: 1.5rem;
+    color: var(--text-1);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
     margin-top: 0;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    padding-bottom: 15px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+    border-bottom: none;
+    padding-bottom: 0;
 }
 
 /* --- LIST ITEMS --- */
-.track-list { flex: 1; }
+.track-list { flex: 1; display: flex; flex-direction: column; gap: 2px; }
 
 .track-item {
     display: flex;
     align-items: center;
-    padding: 0 10px;
-    min-height: 80px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    gap: 16px;
+    padding: 10px 12px;
+    min-height: 64px;
+    border-radius: var(--radius-row);
     box-sizing: border-box;
+    transition: background 0.15s;
 }
-.track-item:last-child { border-bottom: none; }
+.track-item:hover { background: rgba(255, 255, 255, 0.05); }
 
-.track-img { 
-    width: 50px; height: 50px; 
-    border-radius: 8px; margin-right: 20px; object-fit: cover;
+/* Recently Played: two columns on desktop */
+#recent-tracks-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 24px;
+}
+
+.track-img {
+    width: 44px; height: 44px;
+    border-radius: 6px; margin-right: 0; object-fit: cover;
 }
 
 .artist-icon {
-    width: 50px; height: 50px;
+    width: 44px; height: 44px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.08);
     display: flex; align-items: center; justify-content: center;
-    margin-right: 20px;
-    color: #1ed760; font-size: 1.2rem;
+    margin-right: 0;
+    color: var(--green); font-size: 1rem;
+    flex-shrink: 0;
 }
 
-.song-name { font-weight: 700; display: block; font-size: 1rem; }
-.artist-name { color: #888; font-size: 0.9rem; }
-.rank-num { font-weight: 900; color: #1ed760; font-size: 1.2rem; width: 40px; }
+/* square fallback for missing album art (replaces via.placeholder.com) */
+.track-img-fallback {
+    width: 44px; height: 44px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--green); font-size: 1rem;
+    flex-shrink: 0;
+}
 
+.song-name { font-weight: 700; display: block; font-size: 0.95rem; }
+.artist-name { color: var(--text-2); font-size: 0.8rem; }
+.track-meta { color: var(--text-2); font-size: 0.8rem; display: block; }
+.rank-num {
+    font-weight: 800; color: var(--green); font-size: 0.95rem;
+    width: 28px; text-align: right; flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- SKELETON LOADING ---
+   script.js: while fetching, render 5× —
+   <div class="skeleton-row">
+     <div class="skeleton" style="width:24px;height:16px"></div>
+     <div class="skeleton" style="width:44px;height:44px"></div>
+     <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+       <div class="skeleton" style="width:60%;height:12px"></div>
+       <div class="skeleton" style="width:35%;height:10px"></div>
+     </div>
+   </div>                                                           */
+.skeleton-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 12px; min-height: 64px; box-sizing: border-box;
+}
+.skeleton {
+    border-radius: 6px;
+    background: linear-gradient(90deg,
+        rgba(255, 255, 255, 0.06) 25%,
+        rgba(255, 255, 255, 0.12) 50%,
+        rgba(255, 255, 255, 0.06) 75%);
+    background-size: 400px 100%;
+    animation: aw-shimmer 1.4s infinite linear;
+}
+@keyframes aw-shimmer {
+    0%   { background-position: -200px 0; }
+    100% { background-position: 200px 0; }
+}
+
+.loading { color: var(--text-2); }
+
+/* --- RESPONSIVE --- */
 @media (max-width: 768px) {
-    .hero-title { font-size: 3rem; }
+    /* hero-title clamp() already scales — no fixed override */
     .stats-grid { grid-template-columns: 1fr; }
+    #recent-tracks-list { grid-template-columns: 1fr; }
     .navbar { padding: 20px; }
-    .hero-buttons { flex-direction: column; }
+    .hero-buttons { flex-direction: column; align-items: stretch; }
     .search-container { margin-left: 0; width: 100%; }
     .search-dropdown { right: auto; left: 0; }
 }
 
-/* Improve spacing on very large displays */
 @media (min-width: 1600px) {
     .container { max-width: 1600px; width: 88%; }
     .navbar { padding-left: 48px; padding-right: 48px; }
     .hero-title { font-size: clamp(3.5rem, 4.5vw + 1rem, 6.5rem); }
 }
+
+/* --- REDUCED MOTION --- */
+@media (prefers-reduced-motion: reduce) {
+    * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    .skeleton { animation: none; }
+}
+
+/* rows that deep-link to Spotify */
+.track-item.track-link { cursor: pointer; }
+.track-item.track-link:active { transform: scale(0.995); }

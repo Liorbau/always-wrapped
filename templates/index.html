@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Always Wrapped</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='wrapped.css') }}">
+    <!-- weights 500/600/800 added — they were used but never loaded -->
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -15,26 +19,28 @@
     <nav class="navbar">
         <div class="logo">ALWAYS WRAPPED<span class="green-dot">.</span></div>
         <div class="nav-links">
+        </div>
     </nav>
 
     <div class="container">
-        
+
         <section class="hero">
             <h1 class="hero-title">
-                <span class="gradient-text"> CONTROL <br /> YOUR LISTENING.</span> <br /> ALWAYS.
+                <span class="gradient-text">CONTROL<br />YOUR LISTENING<span class="green-dot">.</span></span><br />ALWAYS<span class="green-dot">.</span>
             </h1>
+
 
             <div class="hero-buttons">
                 <button id="refresh-btn" onclick="triggerRefresh()">
                     <i class="fas fa-sync-alt"></i> SYNC SPOTIFY
                 </button>
-                
+
                 <div class="custom-dropdown-container">
-                    <div class="dropdown-trigger" onclick="toggleDropdown()">
+                    <div class="dropdown-trigger" onclick="toggleDropdown()" tabindex="0">
                         <span id="selected-range-text">All Time</span>
                         <i class="fas fa-chevron-down arrow-icon"></i>
                     </div>
-                    
+
                     <div class="dropdown-menu" id="range-menu">
                         <div class="dropdown-item active" onclick="selectRange('all_time', 'All Time', this)">All Time</div>
                         <div class="dropdown-item" onclick="selectRange('ytd', 'Year to Date', this)">Year to Date</div>
@@ -45,7 +51,7 @@
                 <div class="search-container">
                     <div class="search-input-wrapper">
                         <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="search-input" placeholder="Song, artist, or #rank..." oninput="handleSearch(this.value)">
+                        <input type="text" id="search-input" placeholder="Song, artist, or #rank" aria-label="Search songs and artists" oninput="handleSearch(this.value)">
                     </div>
                     <div class="search-dropdown" id="search-dropdown">
                         <div class="search-range-tabs">
@@ -54,6 +60,21 @@
                             <span class="search-tab" onclick="selectSearchRange('7days', this)">7 Days</span>
                         </div>
                         <div id="search-results"></div>
+                    </div>
+                </div>
+
+                <div class="nav-wrapped" id="nav-wrapped">
+                    <i class="fas fa-bolt"></i> CREATE WRAP
+                    <div class="nav-wrapped-menu">
+                        <div onclick="openWrapped('week')">This week</div>
+                        <div onclick="openWrapped('month')">This month</div>
+                        <div onclick="openWrapped('all')">All time</div>
+                        <div onclick="toggleCustomRange(event)">Custom…</div>
+                        <div class="nav-wrapped-custom aw-hidden" onclick="event.stopPropagation()">
+                            <input type="date" id="w-custom-start" title="Start date">
+                            <input type="date" id="w-custom-end" title="End date (included)">
+                            <button onclick="openCustomWrapped()">Go</button>
+                        </div>
                     </div>
                 </div>
 
@@ -69,14 +90,14 @@
 
         <div class="stats-grid">
             <div class="card glass-card">
-                <h2> Top Songs</h2>
+                <h2>Top Songs</h2>
                 <div id="top-songs-list" class="track-list">
                     <p class="loading">Loading stats...</p>
                 </div>
             </div>
 
             <div class="card glass-card">
-                <h2> Top Artists</h2>
+                <h2>Top Artists</h2>
                 <div id="top-artists-list" class="track-list">
                     <p class="loading">Loading stats...</p>
                 </div>
@@ -85,7 +106,7 @@
 
         <section id="recent-history">
             <div class="card glass-card full-width">
-                <h2> Recently Played</h2>
+                <h2>Recently Played</h2>
                 <div id="recent-tracks-list" class="track-list">
                     <p class="loading">Loading history...</p>
                 </div>
@@ -94,6 +115,11 @@
 
     </div>
 
+    <div id="aw-chat-root"></div>
+    <div id="aw-wrapped-overlay" class="aw-hidden"></div>
+
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='wrapped.js') }}"></script>
 </body>
 </html>
