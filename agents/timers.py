@@ -23,7 +23,8 @@ USAGE = ("Usage: /timer HH:MM <days> <what you want>\n"
          "e.g. /timer 07:30 sun-thu a 50-minute upbeat playlist for my train\n"
          "days: daily, a range like sun-thu, or a list like mon,wed,fri\n"
          "/timers — list active timers\n"
-         "/deltimer <id> — remove one")
+         "/deltimer <id> — remove one\n"
+         "/plan — build playlists for tomorrow from your calendar")
 
 
 def user_now():
@@ -167,15 +168,36 @@ def handle_command(text, chat_id):
     return USAGE  # /start, /help, anything else
 
 
-def start_timer_service(fire, poll_s=60):
-    """Blocking loop for a daemon thread; fire(row) builds + proposes."""
+def daily_due(hhmm, now, last_date):
+    """True if a once-a-day task should fire now: within GRACE_MIN after its
+    time and not already fired today (same window logic as timers)."""
+    h, m = hhmm.split(":")
+    mins = now.hour * 60 + now.minute
+    return (now.strftime("%Y-%m-%d") != last_date
+            and 0 <= mins - (int(h) * 60 + int(m)) < GRACE_MIN)
+
+
+def start_timer_service(fire, daily=None, poll_s=60):
+    """Blocking loop for a daemon thread; fire(row) builds + proposes.
+
+    daily=(hhmm, callback) also fires callback() once a day at hhmm (used for
+    the nightly Planner run).
+    """
     logger.info("Timer service started (poll every %ss).", poll_s)
+    last_daily = None
     while True:
         try:
             for row in due_timers():
                 # mark BEFORE firing: a crashing DJ run must not retry all day
                 mark_fired(row["id"], user_now().strftime("%Y-%m-%d"))
                 fire(row)
+            if daily:
+                hhmm, cb = daily
+                now = user_now()
+                if daily_due(hhmm, now, last_daily):
+                    last_daily = now.strftime("%Y-%m-%d")
+                    logger.info("Daily task firing at %s.", hhmm)
+                    cb()
         except Exception:
             logger.exception("Timer tick failed.")
         time.sleep(poll_s)

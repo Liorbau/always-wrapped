@@ -217,6 +217,16 @@ def agent_chat():
             spec = _extract_wrap_spec(message)
             _event("wrapped", f"building {spec['period']} edition")
             return jsonify({"type": "wrapped", "response": "Rolling your Wrapped…", **spec})
+        if route == "plan_day":
+            started, reason = _start_planner_run()
+            _event("planner", "plan-my-day requested from chat")
+            if not started and reason == "budget":
+                return jsonify({"type": "refusal",
+                                "response": "Daily agent budget reached — planning is off until tomorrow."}), 429
+            return jsonify({"type": "planning", "response": (
+                "Planning tomorrow from your calendar — I'll send each playlist to your "
+                "Telegram to approve." if started else
+                "Already planning your day — the proposals will land in your Telegram.")})
         kind = "dj" if route == "playlist_request" else "analyst"
         if session[kind] is None:
             llm = get_client(provider=session["provider"])
@@ -418,15 +428,27 @@ def _run_planner():
         _planner_busy["on"] = False
 
 
-@agents_bp.route("/plan", methods=["POST"])
-def trigger_planner():
-    """Kick off the headless Planner (cron or the 'Plan my day' button)."""
+def _start_planner_run():
+    """Start a headless Planner run if allowed. Returns (started, reason).
+    Shared by the /plan endpoint, the /plan Telegram command, the 'plan my day'
+    chat intent, and the nightly scheduler — all funnel through one guard."""
     if budget_left() <= 0:
-        return jsonify({"error": "Daily budget reached."}), 429
+        return False, "budget"
     if _planner_busy["on"]:
-        return jsonify({"error": "A plan is already running."}), 409
+        return False, "busy"
     _planner_busy["on"] = True
     threading.Thread(target=_run_planner, daemon=True).start()
+    return True, ""
+
+
+@agents_bp.route("/plan", methods=["POST"])
+def trigger_planner():
+    """Kick off the headless Planner (nightly scheduler, /plan chat command, or
+    'plan my day' in chat). Kept as an endpoint for scripts/cron parity."""
+    started, reason = _start_planner_run()
+    if not started:
+        return ((jsonify({"error": "Daily budget reached."}), 429) if reason == "budget"
+                else (jsonify({"error": "A plan is already running."}), 409))
     return jsonify({"type": "planning"}), 202
 
 
@@ -462,9 +484,11 @@ def _fire_timer(row):
 
 
 def start_timer_thread():
-    """Spawn the once-a-minute timer loop (called from server startup)."""
+    """Spawn the once-a-minute scheduler: standing timers + the nightly Planner
+    (runs headless at PLANNER_TIME, default 21:00 user-local)."""
+    daily = (os.getenv("PLANNER_TIME", "21:00"), _start_planner_run)
     threading.Thread(target=timers.start_timer_service,
-                     args=(_fire_timer,), daemon=True).start()
+                     args=(_fire_timer,), kwargs={"daily": daily}, daemon=True).start()
 
 
 @agents_bp.route("/telegram/webhook", methods=["POST"])
@@ -488,6 +512,14 @@ def telegram_webhook():
         owner = os.getenv("TELEGRAM_CHAT_ID", "")
         if not text.startswith("/") or not owner or chat_id != owner:
             return jsonify({"type": "ignored"})
+        if text.split()[0].split("@")[0].lower() == "/plan":
+            started, reason = _start_planner_run()
+            telegram.send_message(chat_id,
+                "🗓 Planning tomorrow from your calendar — I'll send each playlist here to approve."
+                if started else
+                ("Daily agent budget reached — planning is off until tomorrow."
+                 if reason == "budget" else "A plan is already running — hang tight."))
+            return jsonify({"type": "ok"})
         try:
             reply = timers.handle_command(text, chat_id)
         except Exception:

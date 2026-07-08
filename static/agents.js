@@ -142,7 +142,7 @@ function wireTrigger(btnId, url, busyMsg) {
     });
 }
 wireTrigger('ag-run-eval', '/api/agent/evaluate', 'An agent is already working — try again in a moment.');
-wireTrigger('ag-run-plan', '/api/agent/plan', 'A plan is already running — check the feed.');
+// Planner has no button: triggered from chat ("plan my day"), Telegram (/plan), or nightly.
 
 place();
 tick();
