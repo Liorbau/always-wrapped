@@ -4,6 +4,7 @@ Run manually before merging/deploying (costs a few cents, needs API keys):
 
     ./venv/bin/python scripts/eval_agents.py            # router only (~$0.01)
     ./venv/bin/python scripts/eval_agents.py --dj       # + one live DJ build (~$0.40)
+    ./venv/bin/python scripts/eval_agents.py --dj-long  # + the 2h Hebrew packer gate
 
 Router cases assert the scope gate and follow-up routing; the DJ case asserts
 the whole loop ends in a verifier-clean playlist.
@@ -61,10 +62,31 @@ def eval_dj():
     return ok
 
 
+def eval_dj_long():
+    """The packer gate: the exact 2h Hebrew request that used to fail live."""
+    from agents.dj import request_playlist, verify_playlist
+
+    print("\nlive LONG DJ build (this costs ~$0.3-0.6)...")
+    out = request_playlist(
+        "build a hebrew playlist of about 2 hours total that will keep me "
+        "awake during the afternoon work time")
+    pl = out["playlist"] or {}
+    violations = verify_playlist(pl) if pl else ["no playlist"]
+    ok = bool(pl) and not violations
+    print(f"  {'PASS' if ok else 'FAIL'}  status={out['status']} "
+          f"steps={out['steps']} cost=${out['cost_usd']:.3f} "
+          f"tracks={len(pl.get('tracks', []))} "
+          f"duration={pl.get('total_duration_min')}min "
+          f"note={out.get('note')!r} violations={violations}")
+    return ok
+
+
 def main():
     ok = eval_router()
     if "--dj" in sys.argv:
         ok = eval_dj() and ok
+    if "--dj-long" in sys.argv:
+        ok = eval_dj_long() and ok
     print("\nEVAL:", "ALL PASS" if ok else "FAILURES — do not release")
     sys.exit(0 if ok else 1)
 

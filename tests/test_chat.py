@@ -97,7 +97,7 @@ def test_endpoint_flow_propose_approve_reject():
     PROPOSAL_JSON = json.dumps({
         "thought": "t", "response": "here you go", "satisfied": True,
         "playlist": {"name": "Mix", "target_duration_min": 45,
-                     "tracks": [{"track_id": "t1"}]}})
+                     "candidates": [{"track_id": "t1", "fit": 0.9}]}})
     with tempfile.TemporaryDirectory() as tmp:
         agents_api.budget_left = lambda: 1.0
         agents_api.route_message = lambda m, context=None: {
@@ -110,6 +110,9 @@ def test_endpoint_flow_propose_approve_reject():
         original_pushes = agents_api.PUSHES_LOG
         agents_api.PUSHES_LOG = os.path.join(tmp, "pushes.jsonl")
         dj_mod.verify_playlist = lambda pl: []
+        original_reality = dj_mod._reality
+        dj_mod._reality = lambda tracks: {
+            "t1": {"artist": "X", "duration_ms": 45 * 60000, "plays": 5}}
         # route run logs to tmp, not the real evidence dir
         real_build_dj, real_build_analyst = agents_api.build_dj, agents_api.build_analyst
         agents_api.build_dj = lambda llm=None: real_build_dj(llm=llm, run_dir=tmp)
@@ -163,6 +166,7 @@ def test_endpoint_flow_propose_approve_reject():
             (agents_api.route_message, agents_api.get_client, agents_api.push_playlist,
              agents_api.budget_left, dj_mod.verify_playlist,
              agents_api.REJECTIONS_LOG) = originals
+            dj_mod._reality = original_reality
             agents_api.build_dj, agents_api.build_analyst = real_build_dj, real_build_analyst
             agents_api.PUSHES_LOG = original_pushes
             agents_api.SESSIONS.clear()

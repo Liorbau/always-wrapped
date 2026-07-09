@@ -28,3 +28,4 @@ agent-runs/
 # Evidence: track the curated text evidence (run logs, summaries) so it's visible
 # in the repo; never commit the ~700MB screen recording.
 evidence/*.mov
+.claude/worktrees/

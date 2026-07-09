@@ -23,13 +23,29 @@ class Track(BaseModel):
     reason: str = ""
 
 
+class Candidate(Track):
+    """A pool entry the model curates; the packer (code) decides if it ships."""
+
+    fit: float = 0.5     # 0..1 — how well it matches the request
+    keep: bool = False   # pinned by a follow-up ("keep this one")
+
+    @field_validator("fit", mode="before")
+    @classmethod
+    def _clamp_fit(cls, v):
+        try:
+            return min(1.0, max(0.0, float(v)))
+        except (TypeError, ValueError):
+            return 0.5
+
+
 class PlaylistProposal(BaseModel):
     name: str = "Untitled"
     description: str = ""
     target_duration_min: Optional[float] = Field(default=None, gt=0, lt=24 * 60)
     total_duration_min: Optional[float] = None
     familiarity_constraint: str = "mixed"
-    tracks: List[Track] = []
+    tracks: List[Track] = []          # legacy/final shape (packer output, old drafts)
+    candidates: List[Candidate] = []  # the pool the packer assembles from
 
 
 class BiasDelta(BaseModel):
