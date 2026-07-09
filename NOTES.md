@@ -124,3 +124,14 @@
   Telegram means approve from your phone, away from the dashboard, which is the
   actual use case (music for tomorrow, decided tonight). (c) planning in the
   cron process — proposals would be unreachable by the webhook's in-memory store.
+- Packer shipped: model curates a scored candidate pool; _pack() (code) selects
+  under all constraints. Supply rounds MERGE incrementally (model shirked
+  re-transcribing 30 ids — measured); last-resort reserve top-up from own
+  history (fit=0.3, never for mostly_never). Verifier demoted to invariant
+  alarm. GATE PASSED live: the exact failed 2h Hebrew request -> 33 tracks,
+  122.9/120 min, 0 violations, $0.22. Duration failures now impossible by
+  construction when supply exists.
+- Post-competition repo hygiene: prune agent-runs/ to 2-3 showcase logs (or move
+  full set to submission folder), gitignore agent-runs/+pushes/rejections jsonl
+  going forward, compute SCHEMA_DOC stats dynamically (hardcoded 4.3k/Feb-2026).
+  Learned bias weights already live in the DB only — clones start fresh.
