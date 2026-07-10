@@ -1,0 +1,77 @@
+# Deterministic quality gate for Always-Wrapped.
+# Agents may open PRs; this workflow decides whether they pass.
+name: CI
+
+on:
+  push:
+    branches: [main, feat/**]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit tests (Python 3.9)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Install dependencies
+        # requirements.txt may be UTF-16 on this repo — normalize before pip.
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          raw = Path("requirements.txt").read_bytes()
+          if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+              text = raw.decode("utf-16")
+          else:
+              text = raw.decode("utf-8")
+          Path("requirements.ci.txt").write_text(text, encoding="utf-8")
+          PY
+          python -m pip install --upgrade pip
+          pip install -r requirements.ci.txt
+
+      - name: Compile check
+        run: python -m compileall -q agents pipelines scripts server.py collect_songs.py analytics.py authentication.py db_config.py setup_db.py logging_config.py
+
+      - name: Run unit suites
+        # Framework-free suites; each file is runnable directly.
+        # No Spotify / LLM / DB secrets required — tests use fakes.
+        env:
+          # Keep agent budget / provider defaults deterministic in CI.
+          AGENT_DAILY_BUDGET_USD: "20.00"
+          LLM_PROVIDER: openai
+        run: |
+          set -euo pipefail
+          failed=0
+          for t in tests/test_*.py; do
+            echo "::group::$t"
+            if ! python "$t"; then
+              echo "::error file=$t::suite failed"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "$failed"
+
+      - name: Secret scan (tracked files)
+        # Cheap fail-closed check: no .env / token caches / sqlite DBs in git.
+        run: |
+          set -euo pipefail
+          bad=$(git ls-files | grep -E '(^|/)\.env$|\.cache(-push)?$|\.db$|\.sqlite' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Sensitive paths are tracked:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "No sensitive tracked paths."
