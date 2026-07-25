@@ -22,6 +22,7 @@ from agents.store import hitl
 from agents.tools import QUERY_HISTORY_SCHEMA, SCHEMA_DOC, query_history
 from db.connection import get_db_connection
 from db.dialects import dialect_for
+from db.rls import enable_rls
 from core.logging import configure_logger
 
 logger = configure_logger(__name__)
@@ -70,8 +71,9 @@ FINAL RESPONSE FORMAT — reply with valid JSON only:
 """
 
 
-def _ensure_table(conn):
-    conn.cursor().execute(
+def _ensure_table(conn, driver):
+    cursor = conn.cursor()
+    cursor.execute(
         """CREATE TABLE IF NOT EXISTS preference_bias (
             kind TEXT NOT NULL,
             key TEXT NOT NULL,
@@ -82,6 +84,7 @@ def _ensure_table(conn):
             PRIMARY KEY (kind, key)
         )"""
     )
+    enable_rls(cursor, driver, "preference_bias")
     conn.commit()
 
 
@@ -109,7 +112,7 @@ def apply_biases(proposed):
     if not conn:
         logger.error("Evaluator: no DB connection; biases not applied.")
         return []
-    _ensure_table(conn)
+    _ensure_table(conn, driver)
     p = dialect_for(driver).placeholder
     cursor = conn.cursor()
 
@@ -157,7 +160,7 @@ def top_biases(limit=10):
     if not conn:
         return []
     try:
-        _ensure_table(conn)
+        _ensure_table(conn, driver)
         cursor = conn.cursor()
         cursor.execute(
             "SELECT kind, key, weight, sample_n FROM preference_bias ORDER BY ABS(weight) DESC"
