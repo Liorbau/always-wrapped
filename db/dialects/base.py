@@ -30,6 +30,18 @@ class Dialect(ABC):
         """Full local weekday name for IANA timezone `tz`."""
 
     @abstractmethod
+    def local_date(self, column, tz):
+        """Local calendar date (YYYY-MM-DD) for IANA timezone `tz`."""
+
+    @abstractmethod
+    def local_week_start(self, column, tz):
+        """Local Sunday starting the week containing `column` in `tz`."""
+
+    @abstractmethod
+    def local_month_start(self, column, tz):
+        """Local first-of-month date for `column` in `tz`."""
+
+    @abstractmethod
     def within_last_days(self, column, days):
         """Predicate fragment limiting a column to the last N days."""
 

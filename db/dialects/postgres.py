@@ -15,6 +15,20 @@ class PostgresDialect(Dialect):
         local = f"({column}::timestamptz AT TIME ZONE '{tz}')"
         return f"TRIM(to_char({local}, 'Day'))"
 
+    def _local_ts(self, column, tz):
+        return f"({column}::timestamptz AT TIME ZONE '{tz}')"
+
+    def local_date(self, column, tz):
+        return f"{self._local_ts(column, tz)}::date"
+
+    def local_week_start(self, column, tz):
+        local = self._local_ts(column, tz)
+        return f"(date_trunc('week', {local} + interval '1 day') - interval '1 day')::date"
+
+    def local_month_start(self, column, tz):
+        local = self._local_ts(column, tz)
+        return f"date_trunc('month', {local})::date"
+
     def within_last_days(self, column, days):
         return f"{column} >= (NOW() - INTERVAL '{int(days)} days')::text"
 

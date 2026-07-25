@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request
 from core.timezone import resolve_tz
 from app.modules.music.orchestrators import (
     get_insight,
+    get_records,
     get_top_artists,
     get_top_songs,
     list_history,
@@ -33,6 +34,11 @@ def top_artists():
 @music_bp.get("/insight")
 def insight():
     return jsonify(get_insight.execute(tz=resolve_tz(request.args.get("tz"))))
+
+
+@music_bp.get("/records")
+def records():
+    return jsonify(get_records.execute(tz=resolve_tz(request.args.get("tz"))))
 
 
 @music_bp.get("/search")
