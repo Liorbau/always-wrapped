@@ -20,6 +20,7 @@ import pipelines.wrapped as wr
 from agents.ledger import DAILY_BUDGET_USD
 from agents.store import hitl, run_costs
 from tests.test_harness import FakeLLM
+from db.sqlite_time import register_time_udfs
 
 
 def _make_db(path, n=25):
@@ -54,7 +55,9 @@ def _add_plays(path, n, track, artist):
 
 def _patched(path):
     def _connect(readonly=False):
-        return sqlite3.connect(path), "sqlite"
+        conn = sqlite3.connect(path)
+        register_time_udfs(conn)
+        return conn, "sqlite"
     return _connect
 
 

@@ -38,7 +38,7 @@ def neglected_favourite(artists, rng):
     return None
 
 
-def build_candidates(rng=random):
+def build_candidates(rng=random, tz="UTC"):
     candidates = []
 
     songs = repo.most_played_songs(SAMPLE_SIZE)
@@ -67,7 +67,7 @@ def build_candidates(rng=random):
         if neglected:
             candidates.append(neglected)
 
-    hour = repo.peak_listening_hour()
+    hour = repo.peak_listening_hour(tz)
     if hour is not None:
         candidates.append({
             "kind": "peak_hour",
@@ -83,6 +83,6 @@ def build_candidates(rng=random):
     return candidates
 
 
-def pick(rng=random):
-    candidates = build_candidates(rng)
+def pick(rng=random, tz="UTC"):
+    candidates = build_candidates(rng, tz=tz)
     return rng.choice(candidates) if candidates else None

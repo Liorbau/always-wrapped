@@ -7,14 +7,14 @@ from pipelines.wrapped import get_wrapped
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
-def execute(period="week", force=False, start=None, end=None):
+def execute(period="week", force=False, start=None, end=None, tz="UTC"):
     if period == "custom":
         _validate_range(start, end)
 
     events.record(
         "wrapped", f"{period} edition requested" + (" (fresh look)" if force else "")
     )
-    edition = get_wrapped(period=period, force=force, start=start, end=end)
+    edition = get_wrapped(period=period, force=force, start=start, end=end, tz=tz)
     if edition.get("cost_usd") is not None and edition.get("generated_at"):
         events.record(
             "wrapped",

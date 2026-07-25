@@ -110,6 +110,44 @@ def test_enrichment_batches_ids_within_the_api_limit():
     assert len(enriched) == 120
 
 
+def test_peak_listening_hour_uses_local_timezone():
+    import sqlite3
+    import tempfile
+
+    from app.modules.music import insight_repository as repo
+
+    import app.modules.music.repository as music_repo
+    from db.sqlite_time import register_time_udfs
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "tz.db")
+        conn = sqlite3.connect(path)
+        register_time_udfs(conn)
+        conn.execute("""CREATE TABLE listening_history (
+            played_at TEXT PRIMARY KEY, track_id TEXT, track_name TEXT,
+            artist_name TEXT, album_name TEXT, album_image_url TEXT, artist_id TEXT,
+            artist_image_url TEXT, duration_ms INTEGER, artist_genres TEXT)""")
+        conn.execute(
+            "INSERT INTO listening_history VALUES (?,?,?,?,?,?,?,?,?,?)",
+            ("2026-07-07T05:00:00Z", "t1", "Song", "Artist", "Al", None, "a1", None, 200000, "pop"),
+        )
+        conn.commit()
+        conn.close()
+
+        def connect(readonly=False):
+            c = sqlite3.connect(path)
+            register_time_udfs(c)
+            return c, "sqlite"
+
+        original_connect = music_repo.get_db_connection
+        music_repo.get_db_connection = connect
+        try:
+            assert repo.peak_listening_hour("UTC") == 5
+            assert repo.peak_listening_hour("Asia/Jerusalem") == 8
+        finally:
+            music_repo.get_db_connection = original_connect
+
+
 def test_error_envelope_shape():
     payload = validation_error("bad range", {"start": "x"}).to_payload()
     assert payload == {"error": {"code": VALIDATION_ERROR, "message": "bad range",
@@ -140,6 +178,7 @@ if __name__ == "__main__":
     test_search_by_text_matches_track_or_artist()
     test_enrichment_skips_spotify_when_nothing_missing()
     test_enrichment_batches_ids_within_the_api_limit()
+    test_peak_listening_hour_uses_local_timezone()
     test_error_envelope_shape()
     test_wrapped_custom_range_is_validated_at_the_edge()
     print("OK: all music tests passed")

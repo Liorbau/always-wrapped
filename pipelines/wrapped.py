@@ -74,7 +74,7 @@ def _rows(cursor, sql, params=()):
     return cursor.fetchall()
 
 
-def collect_stats(period="week", start=None, end=None):
+def collect_stats(period="week", start=None, end=None, tz="UTC"):
     """All card data, fixed SQL, dual-driver. Returns None if DB unavailable."""
     start, end_ex, prev_start, key, label = _period_bounds(period, start, end)
     conn, driver = get_db_connection(readonly=True)
@@ -83,8 +83,8 @@ def collect_stats(period="week", start=None, end=None):
     dialect = dialect_for(driver)
     p = dialect.placeholder
     c = conn.cursor()
-    hour_expr = dialect.hour_of("played_at")
-    dow_expr = dialect.weekday_name_of("played_at")
+    hour_expr = dialect.hour_of("played_at", tz)
+    dow_expr = dialect.weekday_name_of("played_at", tz)
 
     W = f"played_at >= {p} AND played_at < {p}"
     win = (start, end_ex)
@@ -255,10 +255,10 @@ def _reopen(cached, stats):
     return dict(cached, stats=stats, label=stats["label"], copy=copy)
 
 
-def get_wrapped(period="week", force=False, llm=None, start=None, end=None):
+def get_wrapped(period="week", force=False, llm=None, start=None, end=None, tz="UTC"):
     """The pipeline: stats -> cached styling, or a fresh one. Returns the edition."""
     period = period if period in ("week", "month", "custom", "all") else "week"
-    stats = collect_stats(period, start=start, end=end)
+    stats = collect_stats(period, start=start, end=end, tz=tz)
     if stats is None:
         return {"error": "Database unavailable."}
     if not force:

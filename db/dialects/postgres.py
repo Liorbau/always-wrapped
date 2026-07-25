@@ -7,11 +7,13 @@ class PostgresDialect(Dialect):
     timestamp_type = "TIMESTAMP"
     serial_pk = "SERIAL PRIMARY KEY"
 
-    def hour_of(self, column):
-        return f"EXTRACT(HOUR FROM {column}::timestamp)::int"
+    def hour_of(self, column, tz):
+        local = f"({column}::timestamptz AT TIME ZONE '{tz}')"
+        return f"EXTRACT(HOUR FROM {local})::int"
 
-    def weekday_name_of(self, column):
-        return f"TRIM(to_char({column}::timestamp, 'Day'))"
+    def weekday_name_of(self, column, tz):
+        local = f"({column}::timestamptz AT TIME ZONE '{tz}')"
+        return f"TRIM(to_char({local}, 'Day'))"
 
     def within_last_days(self, column, days):
         return f"{column} >= (NOW() - INTERVAL '{int(days)} days')::text"
