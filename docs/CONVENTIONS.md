@@ -250,6 +250,9 @@ One responsibility per file. Create only what you need.
     line above the exact line it explains.
 18. Tests: one scenario per test; cover mutation edge cases (missing ids), and
     critical invariants (tenant/data isolation, idempotency/dedup) explicitly.
+    Every test module imports `tests.sandbox` before any app import — it pins the
+    suite to a throwaway SQLite file, because `load_dotenv()` otherwise finds the
+    repo `.env` from anywhere and points the run at the production database.
 19. Formatting: EOF newline; lint and format clean before merge.
 
 ---

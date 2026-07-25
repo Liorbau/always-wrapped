@@ -9,6 +9,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tests import sandbox  # noqa: F401  — must precede every app import
+
 import agents.planner as planner
 from tests.test_harness import FakeLLM
 from tests.test_calendar import ICS, NOW

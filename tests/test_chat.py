@@ -11,6 +11,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tests import sandbox  # noqa: F401  — must precede every app import
+
 from agents import notifications
 from agents.router import route_message
 from integrations.spotify import push_playlist

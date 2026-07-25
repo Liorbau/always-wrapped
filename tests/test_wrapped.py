@@ -13,6 +13,8 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tests import sandbox  # noqa: F401  — must precede every app import
+
 import agents.evaluator as ev
 import pipelines.wrapped as wr
 from agents.ledger import DAILY_BUDGET_USD

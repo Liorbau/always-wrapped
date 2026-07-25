@@ -14,6 +14,8 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tests import sandbox  # noqa: F401  — must precede every app import
+
 from db.dialects import DIALECTS, dialect_for
 from db.dialects.base import Dialect
 from db.dialects.postgres import PostgresDialect

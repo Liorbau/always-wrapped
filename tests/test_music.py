@@ -9,6 +9,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tests import sandbox  # noqa: F401  — must precede every app import
+
 from app.errors import AppError, VALIDATION_ERROR, validation_error
 from app.modules.music import artist_images, insight_service, mappers, search_service
 
