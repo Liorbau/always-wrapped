@@ -1,6 +1,6 @@
 <div align="center">
   <img src="static/logo.png" alt="Always Wrapped Logo" width="100%">
-
+  
   <p>
     <strong>Don't wait 365 days to stay wrapped.</strong>
   </p>
@@ -20,57 +20,40 @@
     <img src="https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white" />
     <img src="https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" />
     <img src="https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white" />
-  </p>
+</p>
 </div>
 
 <br />
 
-A real-time Spotify listening tracker and dashboard. Unlike the annual Spotify Wrapped, this runs 24/7 and keeps a live view of your listening habits with a background collector.
+A real-time Spotify listening history tracker and dashboard. Unlike the annual Spotify Wrapped, this runs 24/7, and provides a live "Always On" dashboard of your music habits using a self-healing background collector.
 
-Under the hood it is a multi-agent system: a listening analyzer and playlist-building DJ you can chat with on the web or Telegram.
-
-Live demo: https://always-wrapped.onrender.com
+Under the hood it's a multi-agent system — a DJ you can chat with to build playlists, plus headless agents that learn from your listening and plan ahead (web or Telegram).
 
 ## Quick setup
+### 1. Installation
+Clone the repo and install dependencies:
+pip install -r requirements.txt
 
-```bash
-git clone https://github.com/Liorbau/always-wrapped.git
-cd always-wrapped
-python3 -m venv venv
-./venv/bin/pip install -r requirements.txt
-cp .env.example .env   # then fill in your keys — see below
-./venv/bin/python server.py
-```
+### 2. Spotify Keys
+1.  Create an App on the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2.  In **Settings**, set the **Redirect URI** to `http://127.0.0.1:8888/callback`.
+3.  Copy `.env.example` to `.env` and fill in your keys:
+    ```env
+    SPOTIFY_CLIENT_ID=your_id_here
+    SPOTIFY_CLIENT_SECRET=your_secret_here
+    SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
+    OPENAI_API_KEY=sk-...          # DJ, Wrapped styling, and other agents
+    # DATABASE_URL=postgresql://... # optional — omit for local SQLite
+    ```
+    See `.env.example` for Telegram, calendar, and deploy options.
 
-Open http://localhost:5000
+### 3. Usage
+**NOTE: Spotify only provides access to your last 50 played tracks, your statistics will begin with these.**
 
-### Environment
+**Run Locally:**
+To start the dashboard and tracker on your own machine:
+python server.py
+Visit http://localhost:5000 to see your stats.
 
-Copy [`.env.example`](.env.example) and fill in at least:
-
-- **Spotify** — create an app at the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and set the redirect URI to `http://127.0.0.1:8888/callback`
-- **Database** — omit `DATABASE_URL` for local SQLite, or point it at any Postgres (Supabase, Neon, etc.)
-- **LLM** — `OPENAI_API_KEY` (or another LiteLLM provider) for the DJ and Wrapped styling
-
-Everything else in `.env.example` is optional (Telegram, calendar, spend cap, deploy settings).
-
-### Local data without waiting
-
-Spotify only exposes your last ~50 plays on first connect. To populate a local dashboard immediately:
-
-```bash
-DATABASE_URL= ./venv/bin/python scripts/seed_local_db.py
-```
-
-### Docker
-
-```bash
-docker build -t always-wrapped .
-docker run --env-file .env -p 5000:5000 always-wrapped
-```
-
-### Tests
-
-```bash
-./venv/bin/python tests/test_ingest.py   # any tests/test_*.py works
-```
+**Run 24/7 (Optional):**
+ To keep collecting data while your computer is off, deploy this code to any cloud provider and add your .env keys to their environment settings.
