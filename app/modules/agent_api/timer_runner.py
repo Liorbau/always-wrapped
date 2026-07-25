@@ -3,7 +3,6 @@
 Read-only on the account — a fired timer proposes over Telegram and waits.
 """
 
-import os
 import threading
 
 from agents import timers
@@ -14,8 +13,6 @@ from app.modules.agent_api import events, planning, proposals
 from core.logging import configure_logger
 
 logger = configure_logger(__name__)
-
-DEFAULT_PLANNER_TIME = "21:00"
 
 
 def fire(row):
@@ -57,11 +54,21 @@ def fire(row):
 
 
 def start_thread():
-    """Once-a-minute scheduler: standing timers plus the nightly Planner."""
-    daily = (os.getenv("PLANNER_TIME", DEFAULT_PLANNER_TIME), planning.start)
+    """Once-a-minute scheduler: standing timers plus the nightly Planner.
+
+    The Planner time is passed as a lookup, not a value, so /plantime applies
+    to the running server without a restart.
+    """
+    try:
+        scheduled = timers.planner_time()
+    except Exception:
+        logger.exception("Could not read the Planner schedule at startup.")
+    else:
+        logger.info("Nightly Planner %s.", f"runs at {scheduled}" if scheduled
+                    else "is off — set it with /plantime HH:MM")
     threading.Thread(
         target=timers.start_timer_service,
         args=(fire,),
-        kwargs={"daily": daily},
+        kwargs={"daily": (timers.planner_time, planning.start)},
         daemon=True,
     ).start()

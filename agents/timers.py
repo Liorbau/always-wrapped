@@ -10,6 +10,7 @@ import datetime
 import os
 import time
 
+from db import settings
 from db.connection import get_db_connection
 from db.dialects import dialect_for
 from db.rls import enable_rls
@@ -26,7 +27,11 @@ USAGE = ("Usage: /timer HH:MM <days> <what you want>\n"
          "days: daily, a range like sun-thu, or a list like mon,wed,fri\n"
          "/timers — list active timers\n"
          "/deltimer <id> — remove one\n"
-         "/plan — build playlists for tomorrow from your calendar")
+         "/plan — build playlists for tomorrow from your calendar\n"
+         "/plantime HH:MM | off — when the nightly Planner runs")
+
+PLANNER_TIME_KEY = "planner_time"
+PLANNER_OFF = "off"
 
 
 def user_now():
@@ -67,6 +72,38 @@ def parse_timer(text):
     if not days:
         return {"error": f"Bad days '{days_token}'.\n\n{USAGE}"}
     return {"at": at, "days": days, "prompt": prompt.strip()}
+
+
+def planner_time():
+    """Nightly Planner time as 'HH:MM', or None when it should not run.
+
+    Unset means off: the Planner starts running only once the owner picks a
+    time, so a fresh install never surprises anyone with a nightly agent run.
+    """
+    stored = settings.get(PLANNER_TIME_KEY)
+    return None if stored in (None, PLANNER_OFF) else stored
+
+
+def set_planner_time(at):
+    settings.set_value(PLANNER_TIME_KEY, at or PLANNER_OFF)
+
+
+def parse_plantime(text):
+    """'/plantime 07:30' | '/plantime off' -> {'at': 'HH:MM' or None}.
+
+    An empty dict means no argument was given, so the caller reports the
+    current setting instead of changing it; {'error'} means it was unusable.
+    """
+    parts = text.split(None, 1)
+    if len(parts) < 2:
+        return {}
+    arg = parts[1].strip().lower()
+    if arg == PLANNER_OFF:
+        return {"at": None}
+    try:
+        return {"at": datetime.datetime.strptime(arg, "%H:%M").strftime("%H:%M")}
+    except ValueError:
+        return {"error": f"Bad time '{arg}' — use HH:MM or 'off'."}
 
 
 def _conn():
@@ -158,6 +195,17 @@ def handle_command(text, chat_id):
             return "Usage: /deltimer <id> (see /timers)"
         return (f"Timer #{arg[0]} removed." if delete_timer(int(arg[0]))
                 else f"No timer #{arg[0]}.")
+    if cmd == "/plantime":
+        parsed = parse_plantime(text)
+        if "error" in parsed:
+            return parsed["error"]
+        if not parsed:
+            current = planner_time()
+            return (f"🌙 Nightly Planner runs at {current}." if current
+                    else "🌙 Nightly Planner is off.") + "\nSet it: /plantime HH:MM | off"
+        set_planner_time(parsed["at"])
+        return (f"🌙 Nightly Planner set for {parsed['at']}." if parsed["at"]
+                else "🌙 Nightly Planner turned off.")
     if cmd == "/timer":
         parsed = parse_timer(text)
         if "error" in parsed:
@@ -178,11 +226,22 @@ def daily_due(hhmm, now, last_date):
             and 0 <= mins - (int(h) * 60 + int(m)) < GRACE_MIN)
 
 
+def daily_hhmm(daily):
+    """The daily task's time for this tick.
+
+    `daily` may carry a fixed 'HH:MM' or a callable re-read every tick, so
+    changing the schedule takes effect without restarting the server. None
+    means the task is switched off right now.
+    """
+    hhmm, _callback = daily
+    return hhmm() if callable(hhmm) else hhmm
+
+
 def start_timer_service(fire, daily=None, poll_s=60):
     """Blocking loop for a daemon thread; fire(row) builds + proposes.
 
     daily=(hhmm, callback) also fires callback() once a day at hhmm (used for
-    the nightly Planner run).
+    the nightly Planner run); hhmm may be a callable, see daily_hhmm.
     """
     logger.info("Timer service started (poll every %ss).", poll_s)
     last_daily = None
@@ -193,12 +252,12 @@ def start_timer_service(fire, daily=None, poll_s=60):
                 mark_fired(row["id"], user_now().strftime("%Y-%m-%d"))
                 fire(row)
             if daily:
-                hhmm, cb = daily
+                hhmm = daily_hhmm(daily)
                 now = user_now()
-                if daily_due(hhmm, now, last_daily):
+                if hhmm and daily_due(hhmm, now, last_daily):
                     last_daily = now.strftime("%Y-%m-%d")
                     logger.info("Daily task firing at %s.", hhmm)
-                    cb()
+                    daily[1]()
         except Exception:
             logger.exception("Timer tick failed.")
         time.sleep(poll_s)
