@@ -114,6 +114,12 @@
 }
 .track-item:hover { background: rgba(255, 255, 255, 0.05); }
 
+/* Top Songs rows carry three text lines and Top Artists two, so the two
+   side-by-side lists drift apart down the page without a shared row height.
+   Must clear the taller three-line row; skeletons match to avoid a jump. */
+.stats-grid .track-item,
+.stats-grid .skeleton-row { min-height: 4.5rem; }
+
 /* rows that deep-link to Spotify */
 .track-item.track-link { cursor: pointer; }
 .track-item.track-link:active { transform: scale(0.995); }
