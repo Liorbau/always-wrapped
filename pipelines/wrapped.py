@@ -1,9 +1,10 @@
 """The Wrapped pipeline: interval stats -> one generative styling call -> story.
 
 Deliberately NOT an agent (see AGENTS.md): every query is fixed, the flow is
-linear, and the single LLM call only writes copy and picks colors. Editions are
-cached in the wrapped_editions table so each period generates once (force=True
-regenerates with a fresh theme). Generation cost is recorded in the run-cost
+linear, and the single LLM call only writes copy and picks colors. Stats are
+queried on every open; only the styling is cached in the wrapped_editions table,
+so a period generates copy once (force=True regenerates with a fresh theme)
+while its numbers stay current. Generation cost is recorded in the run-cost
 ledger so the daily cap covers it too.
 """
 
@@ -221,8 +222,41 @@ def _cache_put(key, payload):
     conn.close()
 
 
+def _quoted_facts(stats):
+    """The stat each copy line was written from, keyed by card.
+
+    The styling prompt asks for the real numbers and names, so a cached line
+    is only true as long as its fact holds. Cards absent here (list headers,
+    title, closing) say nothing that can go out of date.
+    """
+    stats = stats or {}
+
+    def first(rows, field):
+        return rows[0].get(field) if rows else None
+
+    return {
+        "volume": (stats.get("plays"), stats.get("prev_plays")),
+        "top_song": first(stats.get("top_songs"), "track"),
+        "top_artist": first(stats.get("top_artists"), "artist"),
+        "eras": first(stats.get("eras"), "decade"),
+        "clock": (stats.get("peak_hour"), stats.get("peak_day")),
+    }
+
+
+def _reopen(cached, stats):
+    """Serve a cached edition with current numbers, dropping copy it outgrew.
+
+    Card designs fall back to deterministic wording for any line we remove, so
+    a stale headline never sits above a number that contradicts it.
+    """
+    was, now = _quoted_facts(cached.get("stats")), _quoted_facts(stats)
+    copy = {card: lines for card, lines in (cached.get("copy") or {}).items()
+            if card not in now or was[card] == now[card]}
+    return dict(cached, stats=stats, label=stats["label"], copy=copy)
+
+
 def get_wrapped(period="week", force=False, llm=None, start=None, end=None):
-    """The pipeline: cache -> stats -> style -> cache. Returns the edition dict."""
+    """The pipeline: stats -> cached styling, or a fresh one. Returns the edition."""
     period = period if period in ("week", "month", "custom", "all") else "week"
     stats = collect_stats(period, start=start, end=end)
     if stats is None:
@@ -230,7 +264,7 @@ def get_wrapped(period="week", force=False, llm=None, start=None, end=None):
     if not force:
         cached = _cache_get(stats["key"])
         if cached:
-            return cached
+            return _reopen(cached, stats)
     from agents.ledger import budget_left
     if budget_left() <= 0:
         return {"empty": True, "period": period,

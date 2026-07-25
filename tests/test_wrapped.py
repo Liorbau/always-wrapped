@@ -39,6 +39,19 @@ def _make_db(path, n=25):
     conn.close()
 
 
+def _add_plays(path, n, track, artist):
+    """More listening after an edition was cached, offset off _make_db's grid."""
+    conn = sqlite3.connect(path)
+    now = time.time()
+    for i in range(n):
+        ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - i * 600 - 37))
+        conn.execute("INSERT INTO listening_history VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                     (ts, "new", track, artist, "Al", None, "anew", None, 200000,
+                      "pop", "2023-01-01"))
+    conn.commit()
+    conn.close()
+
+
 def _patched(path):
     def _connect(readonly=False):
         return sqlite3.connect(path), "sqlite"
@@ -69,6 +82,14 @@ def wrapped_db(path, biases=()):
 GOOD_STYLE = {"satisfied": True, "emoji": "🌊",
               "cards": {"title": ["Big Week", "seven days of sound"]}}
 
+# copy that quotes the stats it was written from, the way the real model does
+QUOTING_STYLE = {"satisfied": True, "emoji": "🌊", "cards": {
+    "title": ["Big Week", "seven days of sound"],
+    "top_songs": ["Your top 5 anthems:"],
+    "volume": ["25 plays spun!", "162 less than last week!"],
+    "top_song": ["'Song 0' sparkled the most!"],
+}}
+
 
 def test_pipeline_generates_and_caches():
     with tempfile.TemporaryDirectory() as tmp:
@@ -94,6 +115,38 @@ def test_pipeline_generates_and_caches():
             llm2 = FakeLLM([{"content": json.dumps(dict(GOOD_STYLE, emoji="🔥"))}])
             ed3 = wr.get_wrapped("week", force=True, llm=llm2)
             assert ed3["theme"]["emoji"] == "🔥"
+
+
+def test_reopening_shows_fresh_stats_and_drops_outdated_copy():
+    with tempfile.TemporaryDirectory() as tmp:
+        db = os.path.join(tmp, "w.db")
+        _make_db(db)
+        with wrapped_db(db):
+            llm = FakeLLM([{"content": json.dumps(QUOTING_STYLE)}])
+            first = wr.get_wrapped("week", llm=llm)
+            assert first["stats"]["plays"] == 25
+
+            _add_plays(db, 9, track="Newcomer", artist="Newcomer Band")
+
+            again = wr.get_wrapped("week", llm=None)
+            assert again["stats"]["plays"] == 34               # live, not the snapshot
+            assert again["stats"]["top_songs"][0]["track"] == "Newcomer"
+            assert again["generated_at"] == first["generated_at"]   # no regeneration
+            assert again["copy"]["title"] == QUOTING_STYLE["cards"]["title"]
+            assert again["copy"]["top_songs"]                  # list header still true
+            assert "volume" not in again["copy"]               # quoted the old 25
+            assert "top_song" not in again["copy"]             # named the old leader
+
+
+def test_reopening_keeps_copy_when_nothing_moved():
+    with tempfile.TemporaryDirectory() as tmp:
+        db = os.path.join(tmp, "w.db")
+        _make_db(db)
+        with wrapped_db(db):
+            llm = FakeLLM([{"content": json.dumps(QUOTING_STYLE)}])
+            first = wr.get_wrapped("week", llm=llm)
+            again = wr.get_wrapped("week", llm=None)
+            assert again["copy"] == first["copy"]
 
 
 def test_generation_stops_when_the_budget_is_gone():
@@ -180,6 +233,8 @@ def test_custom_range_filters_inclusively():
 
 if __name__ == "__main__":
     test_pipeline_generates_and_caches()
+    test_reopening_shows_fresh_stats_and_drops_outdated_copy()
+    test_reopening_keeps_copy_when_nothing_moved()
     test_generation_stops_when_the_budget_is_gone()
     test_invalid_style_falls_back_visibly()
     test_empty_period()
