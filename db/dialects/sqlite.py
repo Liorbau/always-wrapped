@@ -1,8 +1,5 @@
 from db.dialects.base import Dialect
 
-WEEKDAY_NAMES = ("Sunday", "Monday", "Tuesday", "Wednesday",
-                 "Thursday", "Friday", "Saturday")
-
 
 class SqliteDialect(Dialect):
     name = "sqlite"
@@ -10,13 +7,11 @@ class SqliteDialect(Dialect):
     timestamp_type = "DATETIME"
     serial_pk = "INTEGER PRIMARY KEY AUTOINCREMENT"
 
-    def hour_of(self, column):
-        return f"CAST(strftime('%H', {column}) AS INTEGER)"
+    def hour_of(self, column, tz):
+        return f"local_hour({column}, '{tz}')"
 
-    def weekday_name_of(self, column):
-        cases = " ".join(f"WHEN '{i}' THEN '{name}'"
-                         for i, name in enumerate(WEEKDAY_NAMES))
-        return f"CASE strftime('%w', {column}) {cases} END"
+    def weekday_name_of(self, column, tz):
+        return f"local_weekday({column}, '{tz}')"
 
     def within_last_days(self, column, days):
         return f"{column} >= datetime('now', '-{int(days)} days')"

@@ -14,6 +14,8 @@ import sqlite3
 
 from dotenv import load_dotenv
 
+from db.sqlite_time import register_time_udfs
+
 try:
     import psycopg2
 except ImportError:
@@ -57,6 +59,7 @@ def _connect_sqlite(readonly):
         else:
             conn = sqlite3.connect(SQLITE_PATH)
         conn.row_factory = sqlite3.Row
+        register_time_udfs(conn)
         return conn, "sqlite"
     except sqlite3.Error as exc:
         logger.error("Failed to connect to SQLite: %s", exc)

@@ -46,9 +46,9 @@ def recently_played_artist_names(limit=10):
         return {row[0] for row in cursor.fetchall()}
 
 
-def peak_listening_hour():
+def peak_listening_hour(tz):
     with cursor_for() as (cursor, driver):
-        hour_expr = dialect_for(driver).hour_of("played_at")
+        hour_expr = dialect_for(driver).hour_of("played_at", tz)
         cursor.execute(
             f"""
             SELECT {hour_expr} as hour, COUNT(*) as cnt

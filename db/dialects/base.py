@@ -22,12 +22,12 @@ class Dialect(ABC):
     # -- expressions ---------------------------------------------------------
 
     @abstractmethod
-    def hour_of(self, column):
-        """Integer hour 0-23 from a timestamp-ish text column."""
+    def hour_of(self, column, tz):
+        """Integer local hour 0-23 for IANA timezone `tz`."""
 
     @abstractmethod
-    def weekday_name_of(self, column):
-        """Full weekday name ('Monday') from a timestamp-ish text column."""
+    def weekday_name_of(self, column, tz):
+        """Full local weekday name for IANA timezone `tz`."""
 
     @abstractmethod
     def within_last_days(self, column, days):

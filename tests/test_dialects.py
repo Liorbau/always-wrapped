@@ -20,6 +20,7 @@ from db.dialects import DIALECTS, dialect_for
 from db.dialects.base import Dialect
 from db.dialects.postgres import PostgresDialect
 from db.dialects.sqlite import SqliteDialect
+from db.sqlite_time import register_time_udfs
 
 SURFACE = ("hour_of", "weekday_name_of", "within_last_days", "since_start_of_year",
            "insert_ignore", "upsert", "insert_returning_id", "inserted_id",
@@ -55,7 +56,7 @@ def test_placeholders_match_column_count():
 def test_dialects_disagree_where_they_must():
     postgres, sqlite = dialect_for("postgres"), dialect_for("sqlite")
     assert postgres.placeholder != sqlite.placeholder
-    assert postgres.hour_of("played_at") != sqlite.hour_of("played_at")
+    assert postgres.hour_of("played_at", "UTC") != sqlite.hour_of("played_at", "UTC")
     assert "INTERVAL" in postgres.within_last_days("played_at", 7)
     assert "datetime(" in sqlite.within_last_days("played_at", 7)
     assert "ON CONFLICT" in postgres.insert_ignore("t", ["a"], "a")
@@ -98,16 +99,23 @@ def test_sqlite_date_expressions_evaluate():
     dialect = dialect_for("sqlite")
     with tempfile.TemporaryDirectory() as tmp:
         conn = sqlite3.connect(os.path.join(tmp, "d.db"))
+        register_time_udfs(conn)
         cursor = conn.cursor()
         cursor.execute("CREATE TABLE plays (played_at TEXT)")
-        cursor.execute("INSERT INTO plays VALUES ('2026-07-20T14:30:00')")  # a Monday
+        cursor.execute("INSERT INTO plays VALUES ('2026-07-20T14:30:00')")
 
         hour = cursor.execute(
-            f"SELECT {dialect.hour_of('played_at')} FROM plays").fetchone()[0]
+            f"SELECT {dialect.hour_of('played_at', 'UTC')} FROM plays").fetchone()[0]
         assert hour == 14
         weekday = cursor.execute(
-            f"SELECT {dialect.weekday_name_of('played_at')} FROM plays").fetchone()[0]
+            f"SELECT {dialect.weekday_name_of('played_at', 'UTC')} FROM plays").fetchone()[0]
         assert weekday == "Monday"
+
+        cursor.execute("DELETE FROM plays")
+        cursor.execute("INSERT INTO plays VALUES ('2026-07-07T05:00:00Z')")
+        hour = cursor.execute(
+            f"SELECT {dialect.hour_of('played_at', 'Asia/Jerusalem')} FROM plays").fetchone()[0]
+        assert hour == 8
 
         # the predicates must be valid SQL even when they match nothing
         for predicate in (dialect.within_last_days("played_at", 7),
