@@ -19,6 +19,7 @@ from agents.schemas import WrappedStyle
 from agents.store import hitl, run_costs
 from db.connection import get_db_connection
 from db.dialects import dialect_for
+from db.rls import enable_rls
 from core.logging import configure_logger
 
 logger = configure_logger(__name__)
@@ -184,9 +185,11 @@ def _log_cost(cost):
                      cost, kind="wrapped")
 
 
-def _ensure_cache_table(conn):
-    conn.cursor().execute("""CREATE TABLE IF NOT EXISTS wrapped_editions (
+def _ensure_cache_table(conn, driver):
+    cursor = conn.cursor()
+    cursor.execute("""CREATE TABLE IF NOT EXISTS wrapped_editions (
         period_key TEXT PRIMARY KEY, payload TEXT NOT NULL, created_at TEXT NOT NULL)""")
+    enable_rls(cursor, driver, "wrapped_editions")
     conn.commit()
 
 
@@ -197,7 +200,7 @@ def _cache_get(key):
     p = dialect_for(driver).placeholder
     c = conn.cursor()
     try:
-        _ensure_cache_table(conn)
+        _ensure_cache_table(conn, driver)
         c.execute(f"SELECT payload FROM wrapped_editions WHERE period_key = {p}", (key,))
         row = c.fetchone()
         return json.loads(row[0]) if row else None
@@ -209,7 +212,7 @@ def _cache_put(key, payload):
     conn, driver = get_db_connection()
     if not conn:
         return
-    _ensure_cache_table(conn)
+    _ensure_cache_table(conn, driver)
     c = conn.cursor()
     blob = json.dumps(payload, ensure_ascii=False)
     now = time.strftime("%Y-%m-%dT%H:%M:%S")

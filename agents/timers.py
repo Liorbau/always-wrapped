@@ -12,6 +12,7 @@ import time
 
 from db.connection import get_db_connection
 from db.dialects import dialect_for
+from db.rls import enable_rls
 from core.logging import configure_logger
 
 logger = configure_logger(__name__)
@@ -79,6 +80,7 @@ def _conn():
         prompt TEXT NOT NULL,
         chat_id TEXT NOT NULL,
         last_fired TEXT)""")
+    enable_rls(conn.cursor(), driver, "playlist_timers")
     conn.commit()
     return conn, driver
 
