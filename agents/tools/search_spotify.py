@@ -7,8 +7,8 @@ untrusted strings (track/artist names), same fencing rules as history data.
 
 import json
 
-from authentication import auth_connection
-from logging_config import configure_logger
+from integrations.spotify import auth_connection
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 

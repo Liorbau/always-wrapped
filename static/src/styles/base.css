@@ -1,0 +1,25 @@
+/* Document defaults shared by every page. */
+
+body {
+    background-color: var(--bg);
+    color: var(--text-1);
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+/* Buttons inherit the brand font (they default to the system font). */
+button {
+    font-family: inherit;
+}
+
+/* Keyboard focus, everywhere interactive. */
+button:focus-visible,
+input:focus-visible,
+.dropdown-trigger:focus-visible,
+.dropdown-item:focus-visible,
+.search-tab:focus-visible,
+.nav-wrapped-menu div:focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: 2px;
+}

@@ -16,7 +16,8 @@ import re
 import time
 
 from agents.llm import get_client, cost_usd
-from logging_config import configure_logger
+from agents.store import run_costs
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
@@ -37,7 +38,7 @@ COMPACT_AT = 20_000  # compact when the last request's input tokens exceed this
 COMPACT_WORDS = 150
 
 
-def _parse_final(content):
+def parse_final(content):
     """Parse the model's final answer, tolerating markdown fences and prose.
 
     Models routinely wrap the answer JSON in ```json fences with commentary
@@ -84,17 +85,16 @@ class AgentHarness:
         tool_registry=None,
         system_prompt=DEFAULT_SYSTEM_PROMPT,
         max_cost_usd=None,
-        run_dir="agent-runs",
     ):
         self.llm = llm or get_client()
         self.tool_schemas = tool_schemas or []
         self.tool_registry = tool_registry or {}
         self.system_prompt = system_prompt
         self.max_cost_usd = max_cost_usd
-        self.run_dir = run_dir
 
         self.event_hook = None  # optional callable(text) — live observability
-        self._log_path = None   # one persisted log per harness (avoids double-count)
+        # Stable across the whole run so repeated cost writes upsert one row.
+        self.run_id = time.strftime("run-%Y%m%d-%H%M%S-") + os.urandom(3).hex()
         self.messages = []
         self.trajectory = []
         self.last_parsed = None  # full parsed final-answer object (incl. extra keys)
@@ -224,7 +224,7 @@ class AgentHarness:
                         {"role": "tool", "tool_call_id": tc["id"], "content": result}
                     )
             else:
-                parsed = _parse_final(resp["content"])
+                parsed = parse_final(resp["content"])
                 self.last_parsed = parsed
                 satisfied = bool(parsed.get("satisfied", False))
                 final_response = parsed.get("response", "")
@@ -260,7 +260,7 @@ class AgentHarness:
             self.metadata["status"] = "satisfied"
         elif self.metadata["status"] == "running":
             self.metadata["status"] = "max_steps_reached"
-        self.save_run_log()
+        self._record_cost()
         return final_response
 
     def _execute_tool(self, name, args):
@@ -273,19 +273,14 @@ class AgentHarness:
             logger.error("Tool %s failed: %s", name, exc)
             return json.dumps({"error": f"{type(exc).__name__}: {exc}"})
 
-    # -- run log -------------------------------------------------------------
+    # -- accounting ----------------------------------------------------------
 
-    def save_run_log(self):
-        """Persist trajectory + metadata as a timestamped JSON evidence file."""
-        os.makedirs(self.run_dir, exist_ok=True)
-        if self._log_path is None:
-            self._log_path = os.path.join(
-                self.run_dir, time.strftime("run-%Y%m%d-%H%M%S-") + os.urandom(3).hex() + ".json")
-        path = self._log_path
-        with open(path, "w") as f:
-            json.dump(
-                {"metadata": self.metadata, "trajectory": self.trajectory}, f, indent=2
-            )
-        logger.info("Run log saved: %s (status=%s, cost=$%.4f)",
-                    path, self.metadata["status"], self.metadata["cost_usd"])
-        return path
+    def _record_cost(self):
+        """Charge this run against the daily budget.
+
+        The trajectory itself stays in memory: the UI streams it live from
+        `self.trajectory`, and nothing reads it back after the run ends.
+        """
+        run_costs.record(self.run_id, self.metadata["cost_usd"], kind="agent")
+        logger.info("Run %s finished (status=%s, cost=$%.4f)",
+                    self.run_id, self.metadata["status"], self.metadata["cost_usd"])

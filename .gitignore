@@ -1,31 +1,28 @@
-# Security Keys
+# Secrets
 .env
-.cache
 
-# Database
+# Everything the app writes at runtime: OAuth token caches, agent run
+# trajectories. Regenerable or externally backed — see core/paths.py.
+.runtime/
+
+# Local database
 my_spotify_data.db
 
-# Python Junk
+# Python
 venv/
 __pycache__/
 *.pyc
 
-# OS Junk
+# OS
 .DS_Store
 
-# Debug Scripts
-check_db.py
 # Claude Code local settings (personal, not shared)
 .claude/settings.local.json
-.cache-push
-
-# runtime artifacts (run logs, push/rejection state) — evidence is curated into the submission folder, not tracked here
-agent-runs/
+.claude/worktrees/
 
 # Fellowship workshop slides (reference only, not shipped)
 *.pdf
 
-# Evidence: track the curated text evidence (run logs, summaries) so it's visible
-# in the repo; never commit the ~700MB screen recording.
-evidence/*.mov
-.claude/worktrees/
+# Local dead-code scanners — analysis tools, not part of the app
+scripts/find_dead_code.py
+scripts/find_dead_frontend.mjs

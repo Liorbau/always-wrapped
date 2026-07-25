@@ -1,7 +1,7 @@
 """One-time interactive consent for the playlist-push token.
 
 Run this once after cloning (opens a browser); afterwards Approve pushes work
-instantly with no login. For deployed hosts, copy the resulting .cache-push
+instantly with no login. For deployed hosts, copy the resulting .runtime/spotify-push.cache
 content into a SPOTIFY_PUSH_CACHE_CONTENT env var.
 
     ./venv/bin/python scripts/authorize_push.py
@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.spotify_push import get_push_client, PUSH_CACHE
+from integrations.spotify.push_client import get_push_client, PUSH_CACHE
 
 
 def main():

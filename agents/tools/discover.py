@@ -9,8 +9,9 @@ One call replaces ~6-8 tool calls and ~9k tokens of raw playlist JSON.
 import json
 
 from agents.tools.search_spotify import _normalize_track, _sp
-from db_config import get_db_connection, get_placeholder
-from logging_config import configure_logger
+from db.connection import get_db_connection
+from db.dialects import dialect_for
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
@@ -60,7 +61,7 @@ def discover_new_tracks(args):
     conn, driver = get_db_connection(readonly=True)
     played = set()
     if conn:
-        p = get_placeholder(driver)
+        p = dialect_for(driver).placeholder
         cursor = conn.cursor()
         ids = list(candidates)
         for i in range(0, len(ids), 200):

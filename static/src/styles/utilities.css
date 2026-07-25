@@ -1,0 +1,14 @@
+/* Cross-feature primitives. Anything here is used by more than one feature. */
+
+/* Toggled from JS by the chat panel, the wrapped overlay and the date picker,
+   so it has to win over each feature's own display rule. */
+.aw-hidden { display: none !important; }
+
+.green-dot { color: var(--green); }
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}

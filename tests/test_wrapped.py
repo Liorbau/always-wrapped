@@ -3,6 +3,7 @@
 Runnable directly:  ./venv/bin/python tests/test_wrapped.py
 """
 
+import contextlib
 import json
 import os
 import sqlite3
@@ -14,6 +15,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import agents.evaluator as ev
 import pipelines.wrapped as wr
+from agents.ledger import DAILY_BUDGET_USD
+from agents.store import hitl, run_costs
 from tests.test_harness import FakeLLM
 
 
@@ -40,6 +43,27 @@ def _patched(path):
     return _connect
 
 
+@contextlib.contextmanager
+def wrapped_db(path, biases=()):
+    """Point the pipeline and the agent stores at one SQLite file, as in prod.
+
+    The stores matter here because the pipeline consults the spend ledger, which
+    now fails closed when it cannot be read.
+    """
+    modules = (wr, run_costs, hitl)
+    originals = [(module, module.get_db_connection) for module in modules]
+    original_biases = ev.top_biases
+    for module in modules:
+        module.get_db_connection = _patched(path)
+    ev.top_biases = lambda limit=3: list(biases)
+    try:
+        yield
+    finally:
+        for module, connect in originals:
+            module.get_db_connection = connect
+        ev.top_biases = original_biases
+
+
 GOOD_STYLE = {"satisfied": True, "emoji": "🌊",
               "cards": {"title": ["Big Week", "seven days of sound"]}}
 
@@ -48,12 +72,8 @@ def test_pipeline_generates_and_caches():
     with tempfile.TemporaryDirectory() as tmp:
         db = os.path.join(tmp, "w.db")
         _make_db(db)
-        originals = (wr.get_db_connection, ev.top_biases, wr._log_cost)
-        wr.get_db_connection = _patched(db)
-        ev.top_biases = lambda limit=3: [{"kind": "artist", "key": "X", "weight": 0.5}]
-        costs = []
-        wr._log_cost = lambda c: costs.append(c)
-        try:
+        biases = [{"kind": "artist", "key": "X", "weight": 0.5}]
+        with wrapped_db(db, biases=biases):
             llm = FakeLLM([{"content": json.dumps(GOOD_STYLE)}])
             ed = wr.get_wrapped("week", llm=llm)
             assert ed["theme"]["emoji"] == "🌊"
@@ -61,7 +81,8 @@ def test_pipeline_generates_and_caches():
             assert ed["stats"]["plays"] == 25
             assert ed["stats"]["top_artists"][0]["plays"] == 9
             assert ed["stats"]["dj"]["learned"][0]["key"] == "X"
-            assert len(costs) == 1
+            # generation cost landed in the ledger, so it counts against the cap
+            assert run_costs.spent_on() > 0
 
             # second call: served from cache, no LLM involved
             ed2 = wr.get_wrapped("week", llm=None)
@@ -71,42 +92,40 @@ def test_pipeline_generates_and_caches():
             llm2 = FakeLLM([{"content": json.dumps(dict(GOOD_STYLE, emoji="🔥"))}])
             ed3 = wr.get_wrapped("week", force=True, llm=llm2)
             assert ed3["theme"]["emoji"] == "🔥"
-        finally:
-            wr.get_db_connection, ev.top_biases, wr._log_cost = originals
+
+
+def test_generation_stops_when_the_budget_is_gone():
+    """The cap now lives in the DB, so a big recorded spend must block generation."""
+    with tempfile.TemporaryDirectory() as tmp:
+        db = os.path.join(tmp, "w.db")
+        _make_db(db)
+        with wrapped_db(db):
+            run_costs.record("earlier-run", DAILY_BUDGET_USD + 1.0)
+            ed = wr.get_wrapped("week", llm=FakeLLM([{"content": "unused"}]))
+            assert ed["empty"] is True and "budget" in ed["message"].lower()
 
 
 def test_invalid_style_falls_back_visibly():
     with tempfile.TemporaryDirectory() as tmp:
         db = os.path.join(tmp, "w.db")
         _make_db(db)
-        originals = (wr.get_db_connection, ev.top_biases, wr._log_cost)
-        wr.get_db_connection = _patched(db)
-        ev.top_biases = lambda limit=3: []
-        wr._log_cost = lambda c: None
-        try:
+        with wrapped_db(db):
             bad = {"satisfied": True, "emoji": "way-too-long-not-an-emoji-string"}
             ed = wr.get_wrapped("week", llm=FakeLLM([{"content": json.dumps(bad)}]))
             assert ed["theme"]["emoji"] == wr.FALLBACK_THEME["emoji"]
-        finally:
-            wr.get_db_connection, ev.top_biases, wr._log_cost = originals
 
 
 def test_empty_period():
     with tempfile.TemporaryDirectory() as tmp:
         db = os.path.join(tmp, "w.db")
         _make_db(db, n=3)  # under MIN_PLAYS
-        originals = (wr.get_db_connection, ev.top_biases)
-        wr.get_db_connection = _patched(db)
-        ev.top_biases = lambda limit=3: []
-        try:
+        with wrapped_db(db):
             ed = wr.get_wrapped("week", llm=FakeLLM([{"content": "unused"}]))
             assert ed["empty"] is True
-        finally:
-            wr.get_db_connection, ev.top_biases = originals
 
 
 def test_period_bounds():
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timezone
     # week starts on SUNDAY
     start, end_ex, prev, key, label = wr._period_bounds("week")
     start_d = datetime.strptime(start[:10], "%Y-%m-%d").date()
@@ -149,21 +168,17 @@ def test_custom_range_filters_inclusively():
                               None, "a1", None, 200000, "pop", "2000"))
         conn.commit(); conn.close()
 
-        originals = (wr.get_db_connection, ev.top_biases)
-        wr.get_db_connection = _patched(db)
-        ev.top_biases = lambda limit=3: []
-        try:
+        with wrapped_db(db):
             s = wr.collect_stats("custom", start="2026-06-01", end="2026-06-10")
             assert s["plays"] == 23           # both boundary days included
             assert s["prev_plays"] == 5       # the 10 days before: only May 31
             assert s["label"].startswith("Jun 01")
-        finally:
-            wr.get_db_connection, ev.top_biases = originals
 
 
 
 if __name__ == "__main__":
     test_pipeline_generates_and_caches()
+    test_generation_stops_when_the_budget_is_gone()
     test_invalid_style_falls_back_visibly()
     test_empty_period()
     test_period_bounds()

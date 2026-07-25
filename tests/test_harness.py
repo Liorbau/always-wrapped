@@ -6,7 +6,6 @@ Runnable directly:  ./venv/bin/python tests/test_harness.py
 import json
 import os
 import sys
-import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -44,39 +43,53 @@ def test_loop_executes_tool_then_finishes():
     seen = []
     registry = {"echo": lambda args: json.dumps({"echoed": args["x"], "_": seen.append(args)})}
     llm = FakeLLM([tool_call("echo", {"x": 42}), final("done")])
-    with tempfile.TemporaryDirectory() as tmp:
-        h = AgentHarness(llm=llm, tool_registry=registry, run_dir=tmp)
-        result = h.run("do the thing")
-        assert result == "done"
-        assert seen == [{"x": 42}]
-        assert h.metadata["status"] == "satisfied"
-        assert h.metadata["tool_call_counts"] == {"echo": 1}
-        # tool result was observed by the model on the next turn
-        assert any(m["role"] == "tool" and "42" in m["content"] for m in h.messages)
-        # run log persisted with full trajectory
-        run_files = os.listdir(tmp)
-        assert len(run_files) == 1
-        log = json.load(open(os.path.join(tmp, run_files[0])))
-        assert [e["type"] for e in log["trajectory"]] == ["tool_call", "response"]
+
+    h = AgentHarness(llm=llm, tool_registry=registry)
+    result = h.run("do the thing")
+    assert result == "done"
+    assert seen == [{"x": 42}]
+    assert h.metadata["status"] == "satisfied"
+    assert h.metadata["tool_call_counts"] == {"echo": 1}
+    # tool result was observed by the model on the next turn
+    assert any(m["role"] == "tool" and "42" in m["content"] for m in h.messages)
+    # the trajectory lives in memory — it is what the UI streams live
+    assert [e["type"] for e in h.trajectory] == ["tool_call", "response"]
+
+
+def test_run_charges_the_daily_budget():
+    """The run's cost must reach the ledger; nothing is written to disk."""
+    import agents.harness as harness_module
+
+    charged = []
+    original = harness_module.run_costs.record
+    harness_module.run_costs.record = lambda run_id, cost, kind="agent": charged.append(
+        (run_id, cost, kind))
+    try:
+        h = AgentHarness(llm=FakeLLM([final("done")]))
+        h.run("anything")
+    finally:
+        harness_module.run_costs.record = original
+
+    assert len(charged) == 1
+    run_id, cost, kind = charged[0]
+    assert run_id == h.run_id and kind == "agent" and cost > 0
 
 
 def test_max_steps_cap():
     llm = FakeLLM([final("not yet", satisfied=False)])
-    with tempfile.TemporaryDirectory() as tmp:
-        h = AgentHarness(llm=llm, run_dir=tmp)
-        h.run("impossible task", max_steps=3)
-        assert h.metadata["step_count"] == 3
-        assert h.metadata["status"] == "max_steps_reached"
+    h = AgentHarness(llm=llm)
+    h.run("impossible task", max_steps=3)
+    assert h.metadata["step_count"] == 3
+    assert h.metadata["status"] == "max_steps_reached"
 
 
 def test_cost_budget_cap():
     # each fake call ~100 in/20 out on gpt-4o pricing => ~$0.00045/step
     llm = FakeLLM([final("not yet", satisfied=False)])
-    with tempfile.TemporaryDirectory() as tmp:
-        h = AgentHarness(llm=llm, max_cost_usd=0.001, run_dir=tmp)
-        h.run("expensive task", max_steps=50)
-        assert h.metadata["status"] == "cost_budget_reached"
-        assert h.metadata["step_count"] < 50
+    h = AgentHarness(llm=llm, max_cost_usd=0.001)
+    h.run("expensive task", max_steps=50)
+    assert h.metadata["status"] == "cost_budget_reached"
+    assert h.metadata["step_count"] < 50
 
 
 def test_unknown_tool_and_tool_crash_survive():
@@ -84,21 +97,19 @@ def test_unknown_tool_and_tool_crash_survive():
     llm = FakeLLM(
         [tool_call("nope", {}), tool_call("boom", {}), final("recovered")]
     )
-    with tempfile.TemporaryDirectory() as tmp:
-        h = AgentHarness(llm=llm, tool_registry=registry, run_dir=tmp)
-        result = h.run("break stuff")
-        assert result == "recovered"
-        errors = [e["result"] for e in h.trajectory if e["type"] == "tool_call"]
-        assert "Unknown tool" in errors[0]
-        assert "ZeroDivisionError" in errors[1]
+    h = AgentHarness(llm=llm, tool_registry=registry)
+    result = h.run("break stuff")
+    assert result == "recovered"
+    errors = [e["result"] for e in h.trajectory if e["type"] == "tool_call"]
+    assert "Unknown tool" in errors[0]
+    assert "ZeroDivisionError" in errors[1]
 
 
 def test_non_json_final_answer_does_not_crash():
     llm = FakeLLM([{"content": "plain text, not JSON"}, final("ok")])
-    with tempfile.TemporaryDirectory() as tmp:
-        h = AgentHarness(llm=llm, run_dir=tmp)
-        result = h.run("talk plainly")
-        assert result == "ok"  # first reply treated as unsatisfied, loop continued
+    h = AgentHarness(llm=llm)
+    result = h.run("talk plainly")
+    assert result == "ok"  # first reply treated as unsatisfied, loop continued
 
 
 def test_cancellation_stops_the_loop():
@@ -106,16 +117,15 @@ def test_cancellation_stops_the_loop():
     # resets cancelled at entry so a stop only aborts the run it fired during.
     registry = {"noop": lambda args: "{}"}
     llm = FakeLLM([tool_call("noop", {}), final("done")])
-    with tempfile.TemporaryDirectory() as tmp:
-        h = AgentHarness(llm=llm, tool_registry=registry, run_dir=tmp)
-        h.event_hook = lambda text: setattr(h, "cancelled", True)
-        h.run("anything", max_steps=10)
-        assert h.metadata["status"] == "cancelled"
-        # a fresh run on the same harness works again (cancelled was reset)
-        llm2 = FakeLLM([final("ok")])
-        h.llm = llm2
-        assert h.run("again", max_steps=3) == "ok"
-        assert h.metadata["status"] == "satisfied"
+    h = AgentHarness(llm=llm, tool_registry=registry)
+    h.event_hook = lambda text: setattr(h, "cancelled", True)
+    h.run("anything", max_steps=10)
+    assert h.metadata["status"] == "cancelled"
+    # a fresh run on the same harness works again (cancelled was reset)
+    llm2 = FakeLLM([final("ok")])
+    h.llm = llm2
+    assert h.run("again", max_steps=3) == "ok"
+    assert h.metadata["status"] == "satisfied"
 
 
 def test_fenced_json_final_answer_is_parsed():
@@ -127,26 +137,25 @@ def test_fenced_json_final_answer_is_parsed():
         + "\n```\n\nEnjoy!"
     )
     llm = FakeLLM([{"content": wrapped}])
-    with tempfile.TemporaryDirectory() as tmp:
-        h = AgentHarness(llm=llm, run_dir=tmp)
-        result = h.run("wrap it")
-        assert result == "fenced"
-        assert h.metadata["status"] == "satisfied"
+    h = AgentHarness(llm=llm)
+    result = h.run("wrap it")
+    assert result == "fenced"
+    assert h.metadata["status"] == "satisfied"
 
 
 def test_prose_with_bare_trailing_json_is_parsed():
     payload = json.dumps({"thought": "t", "response": "trailing", "satisfied": True,
                           "playlist": {"tracks": []}})
     llm = FakeLLM([{"content": "Some analysis first.\n" + payload}])
-    with tempfile.TemporaryDirectory() as tmp:
-        h = AgentHarness(llm=llm, run_dir=tmp)
-        result = h.run("no fence")
-        assert result == "trailing"
-        assert h.last_parsed["playlist"] == {"tracks": []}
+    h = AgentHarness(llm=llm)
+    result = h.run("no fence")
+    assert result == "trailing"
+    assert h.last_parsed["playlist"] == {"tracks": []}
 
 
 if __name__ == "__main__":
     test_loop_executes_tool_then_finishes()
+    test_run_charges_the_daily_budget()
     test_max_steps_cap()
     test_cost_budget_cap()
     test_unknown_tool_and_tool_crash_survive()

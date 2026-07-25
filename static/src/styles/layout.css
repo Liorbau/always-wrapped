@@ -1,0 +1,114 @@
+/* Dashboard page chrome: navbar, hero, container, and the card grid. */
+
+/* --- NAVIGATION --- */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 26px 50px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 10;
+}
+
+.logo {
+    font-family: 'Anton', 'Montserrat', sans-serif;
+    font-weight: 900;
+    font-size: 1.4rem;
+    letter-spacing: -0.5px;
+}
+
+.nav-links a {
+    color: var(--text-1); text-decoration: none; margin-left: 30px;
+    font-size: 0.8rem; font-weight: 700; letter-spacing: 1px;
+    transition: color 0.15s;
+}
+.nav-links a:hover { color: var(--green); }
+
+/* --- HERO --- */
+.container {
+    max-width: 1400px;
+    width: min(94%, 1400px);
+    margin: 0 auto;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+.hero {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 60px;
+}
+
+.hero-title {
+    font-family: 'Montserrat', sans-serif;
+    font-size: clamp(2.5rem, 5vw + 0.5rem, 5.5rem);
+    font-weight: 900;
+    line-height: 0.92;
+    letter-spacing: -2px;
+    margin-bottom: 18px;
+}
+
+.gradient-text {
+    color: transparent;
+    background: linear-gradient(90deg, #ffffff, var(--green));
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.hero-buttons {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+/* --- CARDS & GRIDS --- */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+    align-items: stretch;
+}
+
+.glass-card {
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+h2 {
+    color: var(--text-1);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    margin-top: 0;
+    margin-bottom: 16px;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 768px) {
+    /* hero-title clamp() already scales — no fixed override */
+    .stats-grid { grid-template-columns: 1fr; }
+    .navbar { padding: 20px; }
+    .hero-buttons { flex-direction: column; align-items: stretch; }
+}
+
+@media (min-width: 1600px) {
+    .container { max-width: 1600px; width: 88%; }
+    .navbar { padding-left: 48px; padding-right: 48px; }
+    .hero-title { font-size: clamp(3.5rem, 4.5vw + 1rem, 6.5rem); }
+}

@@ -14,9 +14,9 @@ import json
 
 from agents.dj import build_dj, run_dj_turn
 from agents.llm import get_client, cost_usd
-from agents.harness import _parse_final
+from agents.harness import parse_final
 from agents.tools.calendar import tomorrow_blocks
-from logging_config import configure_logger
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
@@ -60,7 +60,7 @@ def plan_tomorrow(ics_text=None, now=None, llm=None, dj_run=None):
                         messages=[{"role": "user", "content": json.dumps(blocks)}])
     usage = resp.get("usage", {"input": 0, "output": 0})
     cost = cost_usd(getattr(llm, "model", ""), usage["input"], usage["output"])
-    plans = (_parse_final(resp["content"]) or {}).get("plans") or []
+    plans = (parse_final(resp["content"]) or {}).get("plans") or []
     by_title = {b["title"]: b for b in blocks}
     runner = dj_run or run_dj_turn
 

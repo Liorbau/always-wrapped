@@ -11,7 +11,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from collect_songs import build_track_row
+from pipelines.collector import build_track_row
 
 SAMPLE_ITEM = {
     "played_at": "2026-07-07T10:00:00.000Z",
@@ -70,8 +70,8 @@ def test_build_track_row_missing_optionals():
 
 def test_migration_adds_new_columns():
     """A legacy-schema SQLite db gains duration_ms/artist_genres on setup."""
-    import db_config
-    import setup_db
+    import db.connection as db_config
+    import db.schema as setup_db
 
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "legacy.db")

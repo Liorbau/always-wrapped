@@ -30,3 +30,12 @@ TOOL_REGISTRY = {
     "get_audio_features": get_audio_features,
     "discover_new_tracks": discover_new_tracks,
 }
+
+# Re-exported for agents and tests that cherry-pick rather than take the registry.
+__all__ = [
+    "TOOL_SCHEMAS", "TOOL_REGISTRY", "SCHEMA_DOC", "MAX_ROWS", "validate_sql",
+    "QUERY_HISTORY_SCHEMA", "SEARCH_SPOTIFY_SCHEMA", "ARTIST_TOP_TRACKS_SCHEMA",
+    "AUDIO_FEATURES_SCHEMA", "DISCOVER_SCHEMA",
+    "query_history", "search_spotify", "artist_top_tracks",
+    "get_audio_features", "discover_new_tracks",
+]

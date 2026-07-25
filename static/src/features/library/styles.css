@@ -1,0 +1,189 @@
+/* Sync button, time-range dropdown, and the three track lists. */
+
+/* --- SYNC BUTTON --- */
+/* Scoped to the hero row so it never leaks into the chat widget or wrapped menu. */
+.hero-buttons button {
+    padding: 15px 28px;
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+    letter-spacing: 1px;
+}
+
+#refresh-btn {
+    background: var(--green);
+    border: none;
+    color: #000;
+}
+#refresh-btn:hover { transform: scale(1.05); background: var(--green-hover); }
+
+/* --- TIME-RANGE DROPDOWN --- */
+.custom-dropdown-container {
+    position: relative;
+    width: 200px;
+}
+
+.dropdown-trigger {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-strong);
+    color: var(--text-1);
+    padding: 15px 24px;
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+
+.dropdown-trigger:hover {
+    border-color: var(--green);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.arrow-icon {
+    font-size: 0.75rem;
+    color: var(--green);
+    transition: transform 0.3s;
+}
+
+.custom-dropdown-container.open .arrow-icon { transform: rotate(180deg); }
+
+.dropdown-menu {
+    position: absolute;
+    top: 115%;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--surface-menu);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-menu);
+    padding: 6px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 100;
+}
+
+.custom-dropdown-container.open .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-item {
+    padding: 11px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-2);
+    transition: background 0.15s, color 0.15s;
+}
+
+.dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-1);
+}
+
+.dropdown-item.active {
+    color: var(--green);
+    font-weight: 600;
+    background: rgba(30, 215, 96, 0.1);
+}
+
+/* --- TRACK LISTS --- */
+.track-list { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+
+.track-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 12px;
+    min-height: 64px;
+    border-radius: var(--radius-row);
+    box-sizing: border-box;
+    transition: background 0.15s;
+}
+.track-item:hover { background: rgba(255, 255, 255, 0.05); }
+
+/* rows that deep-link to Spotify */
+.track-item.track-link { cursor: pointer; }
+.track-item.track-link:active { transform: scale(0.995); }
+
+/* Recently Played: two columns on desktop */
+#recent-tracks-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 24px;
+}
+
+.track-img {
+    width: 44px; height: 44px;
+    border-radius: 6px; margin-right: 0; object-fit: cover;
+}
+
+.artist-icon {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex; align-items: center; justify-content: center;
+    margin-right: 0;
+    color: var(--green); font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* square fallback for missing album art */
+.track-img-fallback {
+    width: 44px; height: 44px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--green); font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.song-name { font-weight: 700; display: block; font-size: 0.95rem; }
+.artist-name { color: var(--text-2); font-size: 0.8rem; }
+.track-meta { color: var(--text-2); font-size: 0.8rem; display: block; }
+.rank-num {
+    font-weight: 800; color: var(--green); font-size: 0.95rem;
+    width: 28px; text-align: right; flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.loading { color: var(--text-2); }
+
+/* --- SKELETON LOADING --- */
+.skeleton-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 12px; min-height: 64px; box-sizing: border-box;
+}
+.skeleton {
+    border-radius: 6px;
+    background: linear-gradient(90deg,
+        rgba(255, 255, 255, 0.06) 25%,
+        rgba(255, 255, 255, 0.12) 50%,
+        rgba(255, 255, 255, 0.06) 75%);
+    background-size: 400px 100%;
+    animation: aw-shimmer 1.4s infinite linear;
+}
+@keyframes aw-shimmer {
+    0%   { background-position: -200px 0; }
+    100% { background-position: 200px 0; }
+}
+
+@media (max-width: 768px) {
+    #recent-tracks-list { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton { animation: none; }
+}

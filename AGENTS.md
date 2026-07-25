@@ -59,14 +59,18 @@ After coding:
 
 Real-time Spotify listening tracker + dashboard, live at https://always-wrapped.onrender.com, collecting the owner's plays 24/7 since Feb 2026 (~4.3k plays). **v2 (in progress) adds an agentic layer on top** — built as a capstone for an agentic-engineering fellowship competition.
 
-## Architecture (v1)
+## Architecture
 
-- `server.py` — Flask API + dashboard. **Render's start command is `python server.py` — do not move/rename it.** Also spawns the collector thread.
-- `collect_songs.py` — collector: polls Spotify recently-played every 20 min, writes to DB. `build_track_row()` is the pure, tested flattening seam.
-- `analytics.py` — SQL queries behind the API (top songs/artists, search, insights).
-- `authentication.py` / `db_config.py` / `setup_db.py` / `logging_config.py` — Spotify OAuth (spotipy), DB connection + driver detection, schema creation/migration, logging.
-- `static/`, `templates/` — vanilla JS/CSS frontend.
-- DB: **Postgres (Supabase) in prod** when `DATABASE_URL` is set, local SQLite (`my_spotify_data.db`) otherwise. Every query must handle both drivers (see `get_placeholder()` and the driver-specific SQL branches in `analytics.py`).
+- `server.py` — bootstrap only. **Render's start command is `python server.py` — do not move/rename it.** Builds the app, creates the schema, spawns the collector + timer threads.
+- `app/` — the web layer. `create_app()` wires blueprints and the error envelope (`app/errors.py`). Every endpoint flows **router → orchestrator → service → repository**; Flask's `request` never leaves a router. Modules: `music/` (dashboard data), `wrapped/`, `agent_api/` (HTTP surface for the agents), `pages/`.
+- `agents/` — the agent domain, no Flask. `harness/`, `dj/` (prompt, packer, verifier, supply, turn), `analyst`, `evaluator`, `planner`, `router`, `llm`, `tools/`, `notifications/` (Notifier seam), `store/` (durable ledger + HITL history).
+- `pipelines/` — deterministic, non-agent flows: `collector.py` (polls recently-played every 20 min; `build_track_row()` is the pure, tested seam) and `wrapped.py`.
+- `db/` — `connection.py` plus `dialects/`. **No query anywhere branches on the driver**; every engine difference (placeholders, date functions, upserts, generated keys, introspection) lives behind the `Dialect` interface. `db/schema.py` creates/migrates.
+- `integrations/spotify/` — the two OAuth clients, split by scope on purpose: `read_client` (history, always-on) and `push_client` (playlist write, only after Approve).
+- `core/` — cross-cutting infra everything may import: `logging.py`, `paths.py`. It imports from no other package.
+- `static/src/` — ES modules by feature (`api/client.js`, `shared/`, `features/<domain>/{api,view,state}.js`) plus co-located CSS. `templates/` holds the HTML shells; no inline event handlers.
+- Providers are swappable by env: `DATABASE_URL` (any Postgres), `LLM_PROVIDER`/`LLM_MODEL` (any LiteLLM provider), `NOTIFIER` (telegram|none). A `Dockerfile` makes the deploy target irrelevant.
+- Everything written at runtime goes under `RUNTIME_DIR` (default `.runtime/`) — see `core/paths.py`.
 
 ## Data model
 
@@ -74,7 +78,8 @@ One table, `listening_history`: `played_at TEXT` (PK, dedup key), `track_id`, `t
 
 - Genre semantics: `NULL` = never fetched, `""` = fetched but Spotify lists no genres. ~67% of rows have non-empty genres — that's Spotify's catalog ceiling, not a bug.
 - `duration_ms` enables skip inference: if `played_at[n+1] − played_at[n] < duration_ms[n]`, track *n* was skipped.
-- Schema migrations: additive columns via `MIGRATED_COLUMNS` in `setup_db.py`, run on startup. `scripts/backfill_enrich.py` backfills historical NULLs (idempotent, safe to re-run).
+- Schema migrations: additive columns via `MIGRATED_COLUMNS` in `db/schema.py`, run on startup. `scripts/backfill_enrich.py` backfills historical NULLs (idempotent, safe to re-run).
+- Two more tables, created lazily: `agent_run_cost` (the daily spend cap — it lives in the DB because the filesystem is ephemeral, and reading it fails **closed**) and `hitl_decision` (every approve/reject, the Evaluator's training signal). Plus `preference_bias`, `playlist_timers`, `wrapped_editions`.
 
 ## Hard constraints — do not violate
 
@@ -95,7 +100,8 @@ Scored: agentic depth 25 / engineering 20 / product 15 / moat 15 / safety 15 / c
 
 ## Conventions & workflow
 
-- Flat root = v1 (frozen at tag `v1.0.0` on `main`); agentic v2 code goes in `agents/` (agents, tools, harness — nothing else); deterministic v2 pipelines in `pipelines/`; tests in `tests/`; one-off ops in `scripts/`. v2 work happens on `feat/agentic`, merges to `main`, releases as `v2.0.0`.
+- The old flat root is gone: only `server.py` stays there, because Render's start command names it. Web layer in `app/`, agent domain in `agents/` (agents, tools, harness, notifications, store — nothing HTTP), deterministic pipelines in `pipelines/`, persistence in `db/`, third-party clients in `integrations/`, shared infra in `core/`, tests in `tests/`, one-off ops in `scripts/`.
+- Dependencies point one way: `app/` → `agents/`/`pipelines/` → `integrations/`/`db/` → `core/`. If `agents/` ever needs to import `app/`, something web-shaped has leaked into the domain.
 - Tests are framework-free, runnable directly: `./venv/bin/python tests/test_ingest.py` (also pytest-compatible). Every non-trivial behavior change adds one.
 - Local env: `./venv` (Python 3.9), `.env` with `SPOTIFY_CLIENT_ID/SECRET/REDIRECT_URI` + `DATABASE_URL` (gitignored — never commit or print its values). `requirements.txt` is UTF-16-encoded; append with care.
 - Match existing style: module-level `configure_logger(__name__)`, driver-branched SQL, docstrings on public functions.

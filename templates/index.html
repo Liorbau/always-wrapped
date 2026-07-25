@@ -5,9 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Always Wrapped</title>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='wrapped.css') }}">
+    <!-- Order is the cascade: tokens, page chrome, then features. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/styles/tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/styles/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/styles/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/features/backdrop/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/features/library/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/features/search/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/features/insight/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/features/wrapped/menu.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/features/wrapped/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/features/chat/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/styles/utilities.css') }}">
     <!-- weights 500/600/800 added — they were used but never loaded -->
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -31,33 +40,34 @@
 
 
             <div class="hero-buttons">
-                <button id="refresh-btn" onclick="triggerRefresh()">
+                <button id="refresh-btn">
                     <i class="fas fa-sync-alt"></i> SYNC SPOTIFY
                 </button>
 
                 <div class="custom-dropdown-container">
-                    <div class="dropdown-trigger" onclick="toggleDropdown()" tabindex="0">
+                    <div class="dropdown-trigger" data-range-toggle tabindex="0" role="button"
+                         aria-label="Change the time range">
                         <span id="selected-range-text">All Time</span>
                         <i class="fas fa-chevron-down arrow-icon"></i>
                     </div>
 
                     <div class="dropdown-menu" id="range-menu">
-                        <div class="dropdown-item active" onclick="selectRange('all_time', 'All Time', this)">All Time</div>
-                        <div class="dropdown-item" onclick="selectRange('ytd', 'Year to Date', this)">Year to Date</div>
-                        <div class="dropdown-item" onclick="selectRange('7days', 'Last 7 Days', this)">Last 7 Days</div>
+                        <div class="dropdown-item active" data-range="all_time">All Time</div>
+                        <div class="dropdown-item" data-range="ytd">Year to Date</div>
+                        <div class="dropdown-item" data-range="7days">Last 7 Days</div>
                     </div>
                 </div>
 
                 <div class="search-container">
                     <div class="search-input-wrapper">
                         <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="search-input" placeholder="Song, artist, or #rank" aria-label="Search songs and artists" oninput="handleSearch(this.value)">
+                        <input type="text" id="search-input" placeholder="Song, artist, or #rank" aria-label="Search songs and artists">
                     </div>
                     <div class="search-dropdown" id="search-dropdown">
                         <div class="search-range-tabs">
-                            <span class="search-tab active" onclick="selectSearchRange('all_time', this)">All Time</span>
-                            <span class="search-tab" onclick="selectSearchRange('ytd', this)">YTD</span>
-                            <span class="search-tab" onclick="selectSearchRange('7days', this)">7 Days</span>
+                            <span class="search-tab active" data-search-range="all_time">All Time</span>
+                            <span class="search-tab" data-search-range="ytd">YTD</span>
+                            <span class="search-tab" data-search-range="7days">7 Days</span>
                         </div>
                         <div id="search-results"></div>
                     </div>
@@ -66,21 +76,21 @@
                 <div class="nav-wrapped" id="nav-wrapped">
                     <i class="fas fa-bolt"></i> CREATE WRAP
                     <div class="nav-wrapped-menu">
-                        <div onclick="openWrapped('week')">This week</div>
-                        <div onclick="openWrapped('month')">This month</div>
-                        <div onclick="openWrapped('all')">All time</div>
-                        <div onclick="toggleCustomRange(event)">Custom…</div>
-                        <div class="nav-wrapped-custom aw-hidden" onclick="event.stopPropagation()">
+                        <div data-wrapped-period="week">This week</div>
+                        <div data-wrapped-period="month">This month</div>
+                        <div data-wrapped-period="all">All time</div>
+                        <div data-wrapped-custom-toggle>Custom…</div>
+                        <div class="nav-wrapped-custom aw-hidden">
                             <input type="date" id="w-custom-start" title="Start date">
                             <input type="date" id="w-custom-end" title="End date (included)">
-                            <button onclick="openCustomWrapped()">Go</button>
+                            <button data-wrapped-custom-go>Go</button>
                         </div>
                     </div>
                 </div>
 
             </div>
 
-            <div class="insight-card" onmouseenter="cycleInsight()">
+            <div class="insight-card">
                 <div class="insight-content" id="insight-content">
                     <i class="fas fa-lightbulb insight-icon" id="insight-icon-el"></i>
                     <span id="insight-text">Hover here for a fun fact...</span>
@@ -118,8 +128,6 @@
     <div id="aw-chat-root"></div>
     <div id="aw-wrapped-overlay" class="aw-hidden"></div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
-    <script src="{{ url_for('static', filename='chat.js') }}"></script>
-    <script src="{{ url_for('static', filename='wrapped.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='src/main.js') }}"></script>
 </body>
 </html>

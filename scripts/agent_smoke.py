@@ -1,7 +1,7 @@
 """Live smoke run: the agent harness + query_history tool against real data.
 
 Reproducible evidence run — the agent writes its own SQL, observes results,
-iterates, and answers. Trajectory lands in agent-runs/.
+iterates, and answers. Trajectory lands in .runtime/agent-runs/.
 
     ./venv/bin/python scripts/agent_smoke.py ["your question"]
 """

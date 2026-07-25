@@ -14,7 +14,7 @@ import json
 
 import requests
 
-from logging_config import configure_logger
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 

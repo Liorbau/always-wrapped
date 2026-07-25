@@ -29,7 +29,7 @@ import os
 import litellm
 from dotenv import load_dotenv
 
-from logging_config import configure_logger
+from core.logging import configure_logger
 
 load_dotenv()
 logger = configure_logger(__name__)
@@ -49,6 +49,7 @@ DEFAULT_MODELS = {
     "anthropic": "claude-sonnet-5",
     "google": "gemini-2.5-flash",
 }
+NO_PREFIX_PROVIDERS = {"openai"}  # litellm addresses these without a route prefix
 
 
 def _wire(messages):
@@ -107,15 +108,23 @@ class LiteLLMClient:
 
 
 def get_client(model=None, provider=None):
-    """Build the LLM client; provider/model override env (LLM_PROVIDER/LLM_MODEL)."""
+    """Build the LLM client; provider/model override env (LLM_PROVIDER/LLM_MODEL).
+
+    Providers beyond the three with built-in defaults (groq, mistral, ollama,
+    bedrock, azure, …) work by naming the provider and an explicit model — the
+    seam does not gatekeep what LiteLLM already supports.
+    """
     provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower()
-    if provider not in PROVIDERS:
+    model = model or os.getenv("LLM_MODEL") or DEFAULT_MODELS.get(provider)
+    if not model:
         raise ValueError(
-            f"Unknown LLM_PROVIDER {provider!r}; expected one of {sorted(PROVIDERS)}"
+            f"No default model for LLM_PROVIDER {provider!r} — set LLM_MODEL "
+            f"explicitly, or use one of {sorted(DEFAULT_MODELS)}."
         )
-    model = model or os.getenv("LLM_MODEL") or DEFAULT_MODELS[provider]
-    if "/" not in model and provider != "openai":
-        model = f"{PROVIDERS[provider]}/{model}"  # litellm provider routing prefix
+
+    route = PROVIDERS.get(provider, provider)
+    if "/" not in model and provider not in NO_PREFIX_PROVIDERS:
+        model = f"{route}/{model}"  # litellm provider routing prefix
     logger.info("LLM client: provider=%s model=%s", provider, model)
     return LiteLLMClient(model, provider=provider)
 

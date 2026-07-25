@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from logging_config import configure_logger
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
