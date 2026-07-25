@@ -1,11 +1,15 @@
 """Agent tools: guarded read-only SQL over listening_history.
 
 The DJ writes its own SELECT statements (max agentic depth); this module is
-the safety fence around them. Defense in depth, three layers:
+the safety fence around them. Defense in depth, four layers:
 
   1. statement guard  — SELECT/WITH only, single statement, no write keywords
-  2. connection guard — the DB connection itself is opened read-only
-  3. row cap          — results truncated at MAX_ROWS regardless of the SQL
+  2. table allowlist  — listening_history (plus inline CTEs) and nothing else
+  3. connection guard — the DB connection itself is opened read-only
+  4. row cap          — results truncated at MAX_ROWS regardless of the SQL
+
+Layers 1 and 3 bound what the agent may *write*; layer 2 bounds what it may
+*read*, keeping the other tables (biases, timers, decisions, costs) private.
 
 Query results contain track/artist names — untrusted input. They are returned
 as data for the model to read, and the DJ's system prompt must fence them as
@@ -33,7 +37,25 @@ FORBIDDEN = re.compile(
     re.IGNORECASE,
 )
 
+ALLOWED_TABLES = frozenset({"listening_history"})
+
+# A column name where a table is expected means EXTRACT(HOUR FROM played_at) or
+# SUBSTRING(x FROM 1) — those read no table at all, so they stay allowed.
+HISTORY_COLUMNS = frozenset({
+    "played_at", "track_id", "track_name", "artist_name", "album_name",
+    "album_image_url", "artist_id", "artist_image_url", "duration_ms",
+    "artist_genres", "album_release_date", "timestamp",
+})
+
+_COMMENT = re.compile(r"--[^\n]*|/\*.*?\*/", re.DOTALL)
+_LITERAL = re.compile(r"'(?:[^']|'')*'")
+_CTE_NAME = re.compile(r"(?:\bwith\b|,)\s*(?:recursive\s+)?([A-Za-z_]\w*)\s+as\s*\(",
+                       re.IGNORECASE)
+_TABLE_REF = re.compile(r"\b(?:from|join)\b\s*([^\s;()]*)", re.IGNORECASE)
+
 SCHEMA_DOC = f"""SQL dialect: {SQL_DIALECT}.
+listening_history is the only readable table — name it unqualified (no schema
+prefix); any other table is rejected. CTEs you define in the query are fine.
 Table listening_history (one row = one play):
   played_at TEXT primary key — ISO-8601 UTC, e.g. '2026-07-07T08:33:26.231Z' (sortable as text)
   track_id TEXT, track_name TEXT, artist_name TEXT, album_name TEXT
@@ -53,6 +75,32 @@ Results consume your context — SELECT only needed columns, aggregate in SQL,
 and use LIMIT instead of fetching everything."""
 
 
+def _scannable(sql):
+    """SQL reduced so table references can be read positionally: comments and
+    string literals gone, comma spacing collapsed so `a, b` reads as one token."""
+    text = _COMMENT.sub(" ", sql)
+    text = _LITERAL.sub("''", text)
+    return re.sub(r"\s*,\s*", ",", text)
+
+
+def _unapproved_table(sql):
+    """The first table the query reads that is outside the allowlist, or None.
+
+    Deliberately strict: an unrecognised or schema-qualified name is treated as
+    unapproved rather than parsed further, so the tool fails closed.
+    """
+    text = _scannable(sql)
+    known = ALLOWED_TABLES | {m.group(1).lower() for m in _CTE_NAME.finditer(text)}
+    for match in _TABLE_REF.finditer(text):
+        for part in match.group(1).split(","):
+            name = part.strip().strip('"').strip("`").lower()
+            # empty = a subquery opens here; its own FROM is scanned separately
+            if not name or name in known or name in HISTORY_COLUMNS or name.isdigit():
+                continue
+            return name
+    return None
+
+
 def validate_sql(sql):
     """Return an error string if the SQL is not a safe single SELECT, else None."""
     stripped = sql.strip().rstrip(";").strip()
@@ -65,6 +113,11 @@ def validate_sql(sql):
     match = FORBIDDEN.search(stripped)
     if match:
         return f"Forbidden keyword: {match.group(0)!r}. This tool is read-only."
+    table = _unapproved_table(stripped)
+    if table:
+        return (f"Table {table!r} is not available. This tool reads only "
+                "listening_history (write the name unqualified) and CTEs you "
+                "define in the same query.")
     return None
 
 

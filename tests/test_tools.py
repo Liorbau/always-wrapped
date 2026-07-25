@@ -65,6 +65,40 @@ def test_validate_sql_guard():
         assert validate_sql(bad) is not None, f"guard let through: {bad!r}"
 
 
+def test_allowlist_keeps_real_history_queries_working():
+    for sql in (
+        "SELECT * FROM listening_history",
+        "SELECT * FROM listening_history h JOIN listening_history g ON h.track_id = g.track_id",
+        "WITH recent AS (SELECT * FROM listening_history) SELECT * FROM recent",
+        "WITH a AS (SELECT 1), b AS (SELECT 2) SELECT * FROM a JOIN b ON 1=1",
+        "SELECT EXTRACT(HOUR FROM played_at) FROM listening_history",
+        "SELECT substr(album_release_date, 1, 4) FROM listening_history",
+        "SELECT * FROM (SELECT track_id FROM listening_history) t",
+        "SELECT track_name FROM listening_history WHERE artist_name = 'FROM preference_bias'",
+        "select 1",
+    ):
+        assert validate_sql(sql) is None, f"guard wrongly rejected: {sql!r}"
+
+
+def test_allowlist_blocks_every_other_table():
+    for sql in (
+        "SELECT * FROM preference_bias",
+        "SELECT * FROM listening_history, preference_bias",
+        "SELECT * FROM listening_history , hitl_decision",
+        "SELECT track_id FROM listening_history UNION SELECT run_id FROM agent_run_cost",
+        "SELECT * FROM listening_history JOIN playlist_timers ON 1=1",
+        "SELECT * FROM information_schema.columns",
+        "SELECT * FROM sqlite_master",
+        "SELECT * FROM public.listening_history",
+        # comments must not hide the real table from the scanner
+        "SELECT * FROM /* listening_history */ preference_bias",
+        "SELECT * FROM listening_history /* x */ JOIN agent_run_cost ON 1=1",
+    ):
+        error = validate_sql(sql)
+        assert error is not None, f"guard let through: {sql!r}"
+        assert "not available" in error or "Forbidden" in error
+
+
 def test_query_returns_rows():
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "t.db")
@@ -248,6 +282,8 @@ def test_audio_features_maps_spotify_ids():
 
 if __name__ == "__main__":
     test_validate_sql_guard()
+    test_allowlist_keeps_real_history_queries_working()
+    test_allowlist_blocks_every_other_table()
     test_query_returns_rows()
     test_row_cap()
     test_readonly_connection_blocks_writes()
