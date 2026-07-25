@@ -57,7 +57,7 @@ After coding:
 
 # Always-Wrapped
 
-Real-time Spotify listening tracker + dashboard, live at https://always-wrapped.onrender.com, collecting the owner's plays 24/7 since Feb 2026 (~4.3k plays). **v2 (in progress) adds an agentic layer on top** — built as a capstone for an agentic-engineering fellowship competition.
+Real-time Spotify listening tracker + dashboard, live at https://always-wrapped.onrender.com, collecting the owner's plays 24/7 since Feb 2026 (~4.3k plays). **v2 adds an agentic layer on top** — DJ, Evaluator, Planner, and Wrapped.
 
 ## Architecture
 
@@ -94,10 +94,6 @@ One table, `listening_history`: `played_at TEXT` (PK, dedup key), `track_id`, `t
 - **Researcher agent**: only if real open-web discovery is added; isolated from account-write (prompt-injection boundary). Not built until DJ + Evaluator work.
 - **Not agents**: the weekly Wrapped report (pipeline + one generative styling call), orchestrators, critic-debate patterns.
 
-## Competition context (shapes all v2 decisions)
-
-Scored: agentic depth 25 / engineering 20 / product 15 / moat 15 / safety 15 / complexity 5 / demo 5. Evidence tiers: **demonstrated** (runnable test, live URL, reproducible run) > present (code) > asserted (prose). Unattended high-harm actions with no HITL/caps are penalized. Prefer: real plan→act→observe loops, run logs showing iteration, passing tests, honest scoping over polish.
-
 ## Conventions & workflow
 
 - The old flat root is gone: only `server.py` stays there, because Render's start command names it. Web layer in `app/`, agent domain in `agents/` (agents, tools, harness, notifications, store — nothing HTTP), deterministic pipelines in `pipelines/`, persistence in `db/`, third-party clients in `integrations/`, shared infra in `core/`, tests in `tests/`, one-off ops in `scripts/`.
@@ -108,8 +104,8 @@ Scored: agentic depth 25 / engineering 20 / product 15 / moat 15 / safety 15 / c
 
 ## Engineering habits (distilled from expert review of the owner's other projects)
 
-- **One API helper per client.** Frontend network calls go through `awApi()` in
-  `static/chat.js` — never scattered raw `fetch` with duplicated headers/parsing.
+- **One API helper per client.** Frontend network calls go through `apiGet` / `apiPost` in
+  `static/src/api/client.js` — never scattered raw `fetch` with duplicated headers/parsing.
 - **One error envelope.** JSON errors are always `{"error": "<message>"}`; success
   payloads carry a `type` field. Don't invent new shapes.
 - **Never fail silently.** Surface errors to the user/log; never substitute a

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo.png" alt="Always Wrapped Logo" width="100%">
+  <img src="static/logo.png" alt="Always Wrapped Logo" width="100%">
   
   <p>
     <strong>Don't wait 365 days to stay wrapped.</strong>
@@ -27,7 +27,7 @@
 
 A real-time Spotify listening history tracker and dashboard. Unlike the annual Spotify Wrapped, this runs 24/7, and provides a live "Always On" dashboard of your music habits using a self-healing background collector.
 
-Under the hood it's a multi-agent system - a smart listening analyzer and playlist-building DJ you can chat with on the web or Telegram.
+Under the hood it's a multi-agent system — a DJ you can chat with to build playlists, plus headless agents that learn from your listening and plan ahead (web or Telegram).
 
 ## Quick setup
 ### 1. Installation
@@ -37,12 +37,15 @@ pip install -r requirements.txt
 ### 2. Spotify Keys
 1.  Create an App on the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
 2.  In **Settings**, set the **Redirect URI** to `http://127.0.0.1:8888/callback`.
-3.  Create a `.env` file in the project folder and paste your keys:
+3.  Copy `.env.example` to `.env` and fill in your keys:
     ```env
     SPOTIFY_CLIENT_ID=your_id_here
     SPOTIFY_CLIENT_SECRET=your_secret_here
     SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
+    OPENAI_API_KEY=sk-...          # DJ, Wrapped styling, and other agents
+    # DATABASE_URL=postgresql://... # optional — omit for local SQLite
     ```
+    See `.env.example` for Telegram, calendar, and deploy options.
 
 ### 3. Usage
 **NOTE: Spotify only provides access to your last 50 played tracks, your statistics will begin with these.**
