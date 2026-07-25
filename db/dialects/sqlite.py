@@ -13,6 +13,15 @@ class SqliteDialect(Dialect):
     def weekday_name_of(self, column, tz):
         return f"local_weekday({column}, '{tz}')"
 
+    def local_date(self, column, tz):
+        return f"local_date({column}, '{tz}')"
+
+    def local_week_start(self, column, tz):
+        return f"local_week_start({column}, '{tz}')"
+
+    def local_month_start(self, column, tz):
+        return f"local_month_start({column}, '{tz}')"
+
     def within_last_days(self, column, days):
         return f"{column} >= datetime('now', '-{int(days)} days')"
 

@@ -22,7 +22,8 @@ from db.dialects.postgres import PostgresDialect
 from db.dialects.sqlite import SqliteDialect
 from db.sqlite_time import register_time_udfs
 
-SURFACE = ("hour_of", "weekday_name_of", "within_last_days", "since_start_of_year",
+SURFACE = ("hour_of", "weekday_name_of", "local_date", "local_week_start",
+           "local_month_start", "within_last_days", "since_start_of_year",
            "insert_ignore", "upsert", "insert_returning_id", "inserted_id",
            "existing_columns")
 
@@ -116,6 +117,16 @@ def test_sqlite_date_expressions_evaluate():
         hour = cursor.execute(
             f"SELECT {dialect.hour_of('played_at', 'Asia/Jerusalem')} FROM plays").fetchone()[0]
         assert hour == 8
+
+        week_start = cursor.execute(
+            f"SELECT {dialect.local_week_start('played_at', 'UTC')} FROM plays").fetchone()[0]
+        assert week_start == "2026-07-05"
+        month_start = cursor.execute(
+            f"SELECT {dialect.local_month_start('played_at', 'UTC')} FROM plays").fetchone()[0]
+        assert month_start == "2026-07-01"
+        local_day = cursor.execute(
+            f"SELECT {dialect.local_date('played_at', 'UTC')} FROM plays").fetchone()[0]
+        assert local_day == "2026-07-07"
 
         # the predicates must be valid SQL even when they match nothing
         for predicate in (dialect.within_last_days("played_at", 7),
