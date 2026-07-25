@@ -11,8 +11,8 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import agents.dj as dj_mod
-from agents.dj import DJ_SYSTEM_PROMPT, request_playlist, verify_playlist, _pack
+from agents.dj import DJ_SYSTEM_PROMPT, request_playlist, verify_playlist
+from agents.dj import candidates, ground_truth, packer, verifier
 from tests.test_harness import FakeLLM, tool_call
 
 # a valid pool: 12 tracks x 4min = 48min against a 45min target (window 33.8-56.2)
@@ -39,12 +39,12 @@ def pool_reality(n=12, dur=240000, plays=5, artist=None):
 
 
 def with_reality(reality, fn):
-    original = dj_mod._reality
-    dj_mod._reality = lambda tracks: reality
+    original = ground_truth.reality
+    ground_truth.reality = lambda tracks: reality
     try:
         return fn()
     finally:
-        dj_mod._reality = original
+        ground_truth.reality = original
 
 
 def test_prompt_contains_critical_contracts():
@@ -63,7 +63,7 @@ def test_prompt_contains_critical_contracts():
 # --- packer unit tests (pure function + patched reality) ---------------------
 
 def test_pack_hits_duration_window():
-    packed, gap = with_reality(pool_reality(), lambda: _pack(POOL["playlist"]))
+    packed, gap = with_reality(pool_reality(), lambda: packer.pack(POOL["playlist"]))
     assert gap == 0
     assert 33.8 <= packed["total_duration_min"] <= 56.2
     assert packed["name"] == "Afternoon Fuel"
@@ -72,7 +72,7 @@ def test_pack_hits_duration_window():
 
 def test_pack_enforces_artist_cap():
     packed, gap = with_reality(
-        pool_reality(artist="Same"), lambda: _pack(POOL["playlist"]))
+        pool_reality(artist="Same"), lambda: packer.pack(POOL["playlist"]))
     assert len(packed["tracks"]) == 2            # only 2 per artist usable
     assert gap > 0                               # which leaves a supply gap
 
@@ -82,7 +82,7 @@ def test_pack_enforces_never_mix_and_corrects_labels():
     reality = pool_reality(plays=0)
     for i in (0, 1, 2, 3):                       # 4 of 12 are actually played
         reality[f"t{i}"]["plays"] = 9
-    packed, _ = with_reality(reality, lambda: _pack(pl))
+    packed, _ = with_reality(reality, lambda: packer.pack(pl))
     played = [t for t in packed["tracks"] if t["familiarity"] != "never"]
     assert len(played) / len(packed["tracks"]) <= 0.4
     assert all(t["familiarity"] in ("never", "familiar") for t in packed["tracks"])
@@ -92,7 +92,7 @@ def test_pack_honors_pins_first():
     pl = json.loads(json.dumps(POOL["playlist"]))
     pl["candidates"][-1]["keep"] = True          # worst-fit track, pinned
     pl["target_duration_min"] = 8                # room for only 2 tracks
-    packed, _ = with_reality(pool_reality(), lambda: _pack(pl))
+    packed, _ = with_reality(pool_reality(), lambda: packer.pack(pl))
     assert "t11" in [t["track_id"] for t in packed["tracks"]]
 
 
@@ -101,7 +101,7 @@ def test_pack_drops_ghosts_dupes_and_reports_shortfall():
         {"track_id": "t0", "fit": 0.9}, {"track_id": "t0", "fit": 0.9},  # dupe
         {"track_id": "ghost", "fit": 1.0},                               # nowhere
     ]}
-    packed, gap = with_reality(pool_reality(n=1), lambda: _pack(pl))
+    packed, gap = with_reality(pool_reality(n=1), lambda: packer.pack(pl))
     assert [t["track_id"] for t in packed["tracks"]] == ["t0"]
     assert gap > 30                              # 4min of 45 -> big shortfall
 
@@ -111,7 +111,7 @@ def test_pack_interleaves_never_tracks():
     reality = pool_reality(plays=5)
     for i in (0, 1, 2):                          # top-fit tracks are never-played
         reality[f"t{i}"]["plays"] = 0
-    packed, _ = with_reality(reality, lambda: _pack(pl))
+    packed, _ = with_reality(reality, lambda: packer.pack(pl))
     first_three = [t["familiarity"] for t in packed["tracks"][:3]]
     assert first_three.count("never") < 3        # not front-loaded
 
@@ -119,7 +119,7 @@ def test_pack_interleaves_never_tracks():
 def test_pack_accepts_legacy_tracks_key():
     pl = {"target_duration_min": 8,
           "tracks": [{"track_id": "t0"}, {"track_id": "t1"}]}
-    packed, gap = with_reality(pool_reality(n=2), lambda: _pack(pl))
+    packed, gap = with_reality(pool_reality(n=2), lambda: packer.pack(pl))
     assert len(packed["tracks"]) == 2 and gap == 0
 
 
@@ -131,8 +131,7 @@ def test_request_playlist_packs_a_proposal():
         {"content": json.dumps(POOL)},
     ])
     def go():
-        with tempfile.TemporaryDirectory() as tmp:
-            return request_playlist("energizing 45 min", llm=llm, max_steps=5, run_dir=tmp)
+        return request_playlist("energizing 45 min", llm=llm, max_steps=5)
     out = with_reality(pool_reality(), go)
     assert out["status"] == "satisfied"
     assert out["violations"] == []
@@ -152,8 +151,7 @@ def test_supply_loop_merges_incremental_candidates():
         {"content": json.dumps(increment)},
     ])
     def go():
-        with tempfile.TemporaryDirectory() as tmp:
-            return request_playlist("45 min", llm=llm, max_steps=5, run_dir=tmp)
+        return request_playlist("45 min", llm=llm, max_steps=5)
     out = with_reality(pool_reality(), go)
     assert llm.calls == 2                        # exactly one supply round
     assert out["playlist"] is not None and out["note"] is None
@@ -165,15 +163,14 @@ def test_exhausted_supply_delivers_short_with_note():
     small = json.loads(json.dumps(POOL))
     small["playlist"]["candidates"] = small["playlist"]["candidates"][:3]
     llm = FakeLLM([{"content": json.dumps(small)}])   # repeats forever
-    original_gc = dj_mod._gap_candidates
-    dj_mod._gap_candidates = lambda *a, **k: []       # history has nothing either
+    original_gc = candidates.gap_candidates
+    candidates.gap_candidates = lambda *a, **k: []       # history has nothing either
     def go():
-        with tempfile.TemporaryDirectory() as tmp:
-            return request_playlist("45 min", llm=llm, max_steps=9, run_dir=tmp)
+        return request_playlist("45 min", llm=llm, max_steps=9)
     try:
         out = with_reality(pool_reality(n=3), go)
     finally:
-        dj_mod._gap_candidates = original_gc
+        candidates.gap_candidates = original_gc
     assert out["playlist"] is not None           # delivered, not withheld
     assert "Heads up" in out["note"]
     assert out["playlist"]["total_duration_min"] == 12.0
@@ -185,16 +182,15 @@ def test_reserve_topup_closes_gap_from_history():
     small["playlist"]["candidates"] = small["playlist"]["candidates"][:3]  # 12 of 45 min
     llm = FakeLLM([{"content": json.dumps(small)}])   # lazy forever
     reality = pool_reality()                          # t3..t11 exist in "history"
-    original_gc = dj_mod._gap_candidates
-    dj_mod._gap_candidates = lambda exclude, limit=60, hebrew_only=False: [
+    original_gc = candidates.gap_candidates
+    candidates.gap_candidates = lambda exclude, limit=60, hebrew_only=False: [
         f"t{i} | Song {i} — A{i} | 240000 | 6 plays | pop" for i in range(3, 12)]
     def go():
-        with tempfile.TemporaryDirectory() as tmp:
-            return request_playlist("45 min", llm=llm, max_steps=9, run_dir=tmp)
+        return request_playlist("45 min", llm=llm, max_steps=9)
     try:
         out = with_reality(reality, go)
     finally:
-        dj_mod._gap_candidates = original_gc
+        candidates.gap_candidates = original_gc
     assert out["playlist"] is not None
     assert out["note"] is None                        # gap fully closed
     assert out["playlist"]["total_duration_min"] >= 33.8
@@ -206,8 +202,7 @@ def test_budget_death_salvages_draft_pool():
     draft = dict(POOL, satisfied=False)
     llm = FakeLLM([{"content": json.dumps(draft)}])
     def go():
-        with tempfile.TemporaryDirectory() as tmp:
-            return request_playlist("big request", llm=llm, max_steps=2, run_dir=tmp)
+        return request_playlist("big request", llm=llm, max_steps=2)
     out = with_reality(pool_reality(), go)
     assert out["status"] == "max_steps_reached"
     assert out["playlist"] is not None           # pool packed anyway
@@ -218,8 +213,7 @@ def test_clarifying_question_delivered_not_crashed():
     q = {"thought": "need duration", "response": "How long should it be?",
          "satisfied": True, "playlist": None}
     llm = FakeLLM([{"content": json.dumps(q)}])
-    with tempfile.TemporaryDirectory() as tmp:
-        out = request_playlist("make me a playlist", llm=llm, max_steps=3, run_dir=tmp)
+    out = request_playlist("make me a playlist", llm=llm, max_steps=3)
     assert out["status"] == "satisfied"
     assert out["playlist"] is None
     assert out["response"] == "How long should it be?"
@@ -228,8 +222,7 @@ def test_clarifying_question_delivered_not_crashed():
 def test_unsatisfied_run_withholds_playlist():
     llm = FakeLLM([{"content": json.dumps({"thought": "", "response": "hmm",
                                            "satisfied": False})}])
-    with tempfile.TemporaryDirectory() as tmp:
-        out = request_playlist("impossible request", llm=llm, max_steps=2, run_dir=tmp)
+    out = request_playlist("impossible request", llm=llm, max_steps=2)
     assert out["status"] == "max_steps_reached"
     assert out["playlist"] is None
     assert "step budget" in out["response"]
@@ -250,10 +243,10 @@ def test_verifier_catches_real_violations():
         conn.executemany("INSERT INTO listening_history VALUES (?,?,?,?,?)", rows)
         conn.commit(); conn.close()
 
-        original = dj_mod.get_db_connection
-        original_sp = dj_mod._spotify_track_info
-        dj_mod.get_db_connection = lambda readonly=False: (sqlite3.connect(path), "sqlite")
-        dj_mod._spotify_track_info = lambda ids: {}
+        original = ground_truth.get_db_connection
+        original_sp = ground_truth.spotify_track_info
+        ground_truth.get_db_connection = lambda readonly=False: (sqlite3.connect(path), "sqlite")
+        ground_truth.spotify_track_info = lambda ids: {}
         try:
             playlist = {"target_duration_min": 45, "tracks": [
                 {"track_id": "t0", "track_name": "Song 0"},
@@ -263,8 +256,8 @@ def test_verifier_catches_real_violations():
             ]}
             violations = verify_playlist(playlist)
         finally:
-            dj_mod.get_db_connection = original
-            dj_mod._spotify_track_info = original_sp
+            ground_truth.get_db_connection = original
+            ground_truth.spotify_track_info = original_sp
 
     text = " | ".join(violations)
     assert "ghost" in text
@@ -287,8 +280,8 @@ def test_verifier_enforces_never_constraint():
         "n1": {"artist": "D", "duration_ms": 150000, "plays": 0},
     }
     def go():
-        text = " | ".join(dj_mod.verify_playlist(playlist))
-        cleaned, _ = dj_mod._sanitize(playlist)
+        text = " | ".join(verify_playlist(playlist))
+        cleaned, _ = verifier.sanitize(playlist)
         return text, cleaned
     text, cleaned = with_reality(reality, go)
     assert "labeled 'never' but has 7 plays" in text

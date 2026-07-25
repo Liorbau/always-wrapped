@@ -60,7 +60,7 @@ def test_run_evaluator_applies_only_when_satisfied():
                 "thought": "t", "response": "report", "satisfied": True,
                 "biases": [{"kind": "genre", "key": "mizrahi", "delta": 0.2,
                             "evidence": "completed most evening plays"}]})}])
-            out = ev.run_evaluator(llm=llm, run_dir=tmp, max_steps=3)
+            out = ev.run_evaluator(llm=llm, max_steps=3)
             assert out["status"] == "satisfied" and out["applied"] == 1
             assert ev.top_biases()[0]["key"] == "mizrahi"
 
@@ -68,7 +68,7 @@ def test_run_evaluator_applies_only_when_satisfied():
             llm = FakeLLM([{"content": json.dumps({
                 "thought": "", "response": "meh", "satisfied": False,
                 "biases": [{"kind": "genre", "key": "junk", "delta": 0.3}]})}])
-            out = ev.run_evaluator(llm=llm, run_dir=tmp, max_steps=1)
+            out = ev.run_evaluator(llm=llm, max_steps=1)
             assert out["applied"] == 0
             assert all(b["key"] != "junk" for b in ev.top_biases())
         finally:

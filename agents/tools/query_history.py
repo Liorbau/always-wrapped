@@ -16,8 +16,8 @@ import json
 import os
 import re
 
-from db_config import get_db_connection
-from logging_config import configure_logger
+from db.connection import get_db_connection
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 

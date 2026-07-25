@@ -10,8 +10,9 @@ import datetime
 import os
 import time
 
-from db_config import get_db_connection, get_placeholder
-from logging_config import configure_logger
+from db.connection import get_db_connection
+from db.dialects import dialect_for
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
@@ -71,10 +72,8 @@ def _conn():
     conn, driver = get_db_connection()
     if conn is None:
         raise RuntimeError("No database connection.")
-    id_col = ("SERIAL PRIMARY KEY" if driver == "postgres"
-              else "INTEGER PRIMARY KEY AUTOINCREMENT")
     conn.cursor().execute(f"""CREATE TABLE IF NOT EXISTS playlist_timers (
-        id {id_col},
+        id {dialect_for(driver).serial_pk},
         at_hhmm TEXT NOT NULL,
         days TEXT NOT NULL,
         prompt TEXT NOT NULL,
@@ -86,13 +85,13 @@ def _conn():
 
 def add_timer(at, days, prompt, chat_id):
     conn, driver = _conn()
-    ph = get_placeholder(driver)
+    dialect = dialect_for(driver)
     cur = conn.cursor()
-    cur.execute(f"INSERT INTO playlist_timers (at_hhmm, days, prompt, chat_id) "
-                f"VALUES ({ph}, {ph}, {ph}, {ph})" +
-                (" RETURNING id" if driver == "postgres" else ""),
-                (at, ",".join(days), prompt, str(chat_id)))
-    timer_id = cur.fetchone()[0] if driver == "postgres" else cur.lastrowid
+    cur.execute(
+        dialect.insert_returning_id(
+            "playlist_timers", ["at_hhmm", "days", "prompt", "chat_id"]),
+        (at, ",".join(days), prompt, str(chat_id)))
+    timer_id = dialect.inserted_id(cur)
     conn.commit()
     conn.close()
     return timer_id
@@ -110,7 +109,7 @@ def list_timers():
 def delete_timer(timer_id):
     conn, driver = _conn()
     cur = conn.cursor()
-    cur.execute(f"DELETE FROM playlist_timers WHERE id = {get_placeholder(driver)}",
+    cur.execute(f"DELETE FROM playlist_timers WHERE id = {dialect_for(driver).placeholder}",
                 (timer_id,))
     conn.commit()
     gone = cur.rowcount > 0
@@ -120,7 +119,7 @@ def delete_timer(timer_id):
 
 def mark_fired(timer_id, day):
     conn, driver = _conn()
-    ph = get_placeholder(driver)
+    ph = dialect_for(driver).placeholder
     conn.cursor().execute(
         f"UPDATE playlist_timers SET last_fired = {ph} WHERE id = {ph}",
         (day, timer_id))

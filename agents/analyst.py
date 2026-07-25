@@ -7,7 +7,7 @@ music/listening domain.
 
 from agents.harness import AgentHarness
 from agents.tools import QUERY_HISTORY_SCHEMA, SCHEMA_DOC, query_history
-from logging_config import configure_logger
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
@@ -53,7 +53,7 @@ FINAL RESPONSE FORMAT — reply with valid JSON only:
 """
 
 
-def build_analyst(llm=None, run_dir="agent-runs"):
+def build_analyst(llm=None):
     """Configured harness for the Analyst persona (session-reusable)."""
     return AgentHarness(
         llm=llm,
@@ -61,17 +61,4 @@ def build_analyst(llm=None, run_dir="agent-runs"):
         tool_registry={"query_history": query_history},
         system_prompt=ANALYST_SYSTEM_PROMPT,
         max_cost_usd=MAX_COST_USD,
-        run_dir=run_dir,
     )
-
-
-def ask_analyst(question, llm=None, max_steps=MAX_STEPS, run_dir="agent-runs"):
-    """One-shot convenience: fresh Analyst, single question."""
-    analyst = build_analyst(llm=llm, run_dir=run_dir)
-    response = analyst.run(question, max_steps=max_steps)
-    return {
-        "response": response,
-        "status": analyst.metadata["status"],
-        "cost_usd": analyst.metadata["cost_usd"],
-        "steps": analyst.metadata["step_count"],
-    }

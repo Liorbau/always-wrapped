@@ -1,0 +1,19 @@
+/* Design tokens — the one source of truth for colour and radius.
+   Loaded first on every page so feature stylesheets can rely on them. */
+
+:root {
+    --green: #1ed760;
+    --green-hover: #1fdf64;
+    --bg: #050505;
+    --surface: rgba(255, 255, 255, 0.03);
+    --surface-menu: #1a1a1a;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --text-1: #ffffff;
+    --text-2: #a7a7a7;   /* secondary — passes AA on #050505 */
+    --text-3: #6f6f6f;   /* tertiary  — captions, placeholders  */
+    --radius-row: 10px;
+    --radius-menu: 12px;
+    --radius-card: 16px;
+    --radius-pill: 9999px;
+}

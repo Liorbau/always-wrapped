@@ -14,14 +14,15 @@ Safety model (mirrors the DJ's propose/verify split):
 """
 
 import json
-import os
 import time
 
 from agents.harness import AgentHarness
 from agents.schemas import BiasDelta
+from agents.store import hitl
 from agents.tools import QUERY_HISTORY_SCHEMA, SCHEMA_DOC, query_history
-from db_config import get_db_connection, get_placeholder
-from logging_config import configure_logger
+from db.connection import get_db_connection
+from db.dialects import dialect_for
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
@@ -30,8 +31,6 @@ MAX_STEPS = 10
 DECAY = 0.9            # per-run decay: old opinions fade
 MAX_DELTA = 0.3        # per-run clamp: one bad Tuesday can't swing a weight
 MIN_SAMPLES_FULL = 3   # weights reach full strength only after 3 observations
-PUSHES_LOG = os.path.join("agent-runs", "pushes.jsonl")
-REJECTIONS_LOG = os.path.join("agent-runs", "rejections.jsonl")
 
 EVALUATOR_SYSTEM_PROMPT = f"""You are the Evaluator of Always-Wrapped: a headless analyst that
 studies ONE user's real listening behavior and learns their preferences for the
@@ -86,24 +85,10 @@ def _ensure_table(conn):
     conn.commit()
 
 
-def _read_jsonl(path, limit=10):
-    if not os.path.exists(path):
-        return []
-    with open(path) as f:
-        lines = [l for l in f.read().splitlines() if l.strip()]
-    out = []
-    for line in lines[-limit:]:
-        try:
-            out.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return out
-
-
 def _context_blob():
     """Pushed playlists + rejection reasons, embedded as data for the model."""
-    pushes = _read_jsonl(PUSHES_LOG)
-    rejections = _read_jsonl(REJECTIONS_LOG)
+    pushes = hitl.recent(hitl.PUSHED)
+    rejections = hitl.recent(hitl.REJECTED)
     blob = {"recently_pushed_playlists": [
                 {"ts": p.get("ts"), "name": (p.get("playlist") or {}).get("name"),
                  "tracks": [{"track_id": t.get("track_id"),
@@ -125,7 +110,7 @@ def apply_biases(proposed):
         logger.error("Evaluator: no DB connection; biases not applied.")
         return []
     _ensure_table(conn)
-    p = get_placeholder(driver)
+    p = dialect_for(driver).placeholder
     cursor = conn.cursor()
 
     cursor.execute(f"UPDATE preference_bias SET weight = weight * {DECAY}")
@@ -208,7 +193,7 @@ def format_biases_for_dj():
     return "\n".join(lines)
 
 
-def build_evaluator(llm=None, run_dir="agent-runs"):
+def build_evaluator(llm=None):
     """Configured harness for the Evaluator (so callers can attach hooks)."""
     return AgentHarness(
         llm=llm,
@@ -216,13 +201,12 @@ def build_evaluator(llm=None, run_dir="agent-runs"):
         tool_registry={"query_history": query_history},
         system_prompt=EVALUATOR_SYSTEM_PROMPT,
         max_cost_usd=MAX_COST_USD,
-        run_dir=run_dir,
     )
 
 
-def run_evaluator(llm=None, run_dir="agent-runs", max_steps=MAX_STEPS, harness=None):
+def run_evaluator(llm=None, max_steps=MAX_STEPS, harness=None):
     """One headless evaluation pass. Returns {'report', 'applied', 'status', ...}."""
-    evaluator = harness or build_evaluator(llm=llm, run_dir=run_dir)
+    evaluator = harness or build_evaluator(llm=llm)
     report = evaluator.run(
         "Evaluate the last 7 days of listening. Context (pushed playlists and "
         "rejections) as data:\n" + _context_blob(),

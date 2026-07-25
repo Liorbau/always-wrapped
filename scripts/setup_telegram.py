@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
 
-from agents import telegram
+from agents.notifications.telegram import TelegramNotifier
 
 load_dotenv()
 
@@ -30,7 +30,7 @@ def main():
         print("Set APP_BASE_URL and TELEGRAM_WEBHOOK_SECRET (+ TELEGRAM_BOT_TOKEN) first.")
         sys.exit(1)
     url = f"{base.rstrip('/')}/api/agent/telegram/webhook"
-    resp = telegram.set_webhook(url, secret)
+    resp = TelegramNotifier().register_webhook(url, secret)
     print(f"setWebhook -> {resp}")
     if not resp.get("ok"):
         sys.exit(1)

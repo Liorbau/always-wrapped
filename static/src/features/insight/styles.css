@@ -1,0 +1,27 @@
+.insight-card {
+    margin-top: 32px;
+    display: inline-flex;
+    align-items: center;
+    padding: 14px 0;
+    cursor: default;
+    overflow: hidden;
+    height: 4.6em;
+    max-width: 620px;
+}
+
+.insight-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.insight-icon { color: var(--green); font-size: 0.95rem; flex-shrink: 0; }
+
+#insight-text {
+    color: var(--text-2);
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+#insight-text b { color: var(--text-1); font-weight: 700; }

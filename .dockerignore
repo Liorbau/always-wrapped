@@ -1,0 +1,14 @@
+.git
+.gitignore
+venv/
+__pycache__/
+*.pyc
+.env
+.runtime/
+my_spotify_data.db
+.claude/
+.DS_Store
+*.pdf
+*.mov
+docs/
+tests/

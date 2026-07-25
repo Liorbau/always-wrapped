@@ -3,20 +3,22 @@
 Deliberately NOT an agent (see AGENTS.md): every query is fixed, the flow is
 linear, and the single LLM call only writes copy and picks colors. Editions are
 cached in the wrapped_editions table so each period generates once (force=True
-regenerates with a fresh theme). Generation cost is logged into agent-runs/ so
-the daily ledger cap covers it too.
+regenerates with a fresh theme). Generation cost is recorded in the run-cost
+ledger so the daily cap covers it too.
 """
 
 import json
-import os
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 
-from agents.harness import _parse_final
+from agents.harness import parse_final
 from agents.llm import get_client, cost_usd
 from agents.schemas import WrappedStyle
-from db_config import get_db_connection, get_placeholder
-from logging_config import configure_logger
+from agents.store import hitl, run_costs
+from db.connection import get_db_connection
+from db.dialects import dialect_for
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
@@ -77,14 +79,11 @@ def collect_stats(period="week", start=None, end=None):
     conn, driver = get_db_connection(readonly=True)
     if not conn:
         return None
-    p = get_placeholder(driver)
+    dialect = dialect_for(driver)
+    p = dialect.placeholder
     c = conn.cursor()
-    hour_expr = ("EXTRACT(HOUR FROM played_at::timestamp)::int" if driver == "postgres"
-                 else "CAST(strftime('%H', played_at) AS INTEGER)")
-    dow_expr = ("TRIM(to_char(played_at::timestamp, 'Day'))" if driver == "postgres"
-                else "CASE strftime('%w', played_at) WHEN '0' THEN 'Sunday' WHEN '1' THEN 'Monday' "
-                     "WHEN '2' THEN 'Tuesday' WHEN '3' THEN 'Wednesday' WHEN '4' THEN 'Thursday' "
-                     "WHEN '5' THEN 'Friday' ELSE 'Saturday' END")
+    hour_expr = dialect.hour_of("played_at")
+    dow_expr = dialect.weekday_name_of("played_at")
 
     W = f"played_at >= {p} AND played_at < {p}"
     win = (start, end_ex)
@@ -121,15 +120,8 @@ def collect_stats(period="week", start=None, end=None):
         WHERE {W} GROUP BY d ORDER BY COUNT(*) DESC LIMIT 1""", win)
     conn.close()
 
-    # DJ & Evaluator corner — from the agent layer's artifacts
-    def _jsonl(path):
-        try:
-            with open(path) as f:
-                return [json.loads(l) for l in f.read().splitlines() if l.strip()]
-        except (OSError, json.JSONDecodeError):
-            return []
-    pushes = [x for x in _jsonl(os.path.join("agent-runs", "pushes.jsonl"))
-              if (x.get("ts") or "") >= start]
+    # DJ & Evaluator corner — from the agent layer's own records
+    pushes = hitl.pushes_since(start)
     from agents.evaluator import top_biases
     biases = top_biases(limit=3)
 
@@ -145,7 +137,7 @@ def collect_stats(period="week", start=None, end=None):
     }
 
 
-STYLE_PROMPT = f"""You style a Spotify-Wrapped-like story from listening stats. Given the
+STYLE_PROMPT = """You style a Spotify-Wrapped-like story from listening stats. Given the
 stats JSON, reply with JSON only:
 {{
   "satisfied": true,
@@ -175,7 +167,7 @@ def _generate_style(stats, llm=None):
     usage = resp.get("usage", {"input": 0, "output": 0})
     cost = cost_usd(getattr(llm, "model", ""), usage["input"], usage["output"])
     _log_cost(cost)
-    parsed = _parse_final(resp["content"])
+    parsed = parse_final(resp["content"])
     try:
         theme = WrappedStyle.model_validate({"emoji": parsed.get("emoji") or "🎧"}).model_dump()
     except Exception:
@@ -187,14 +179,8 @@ def _generate_style(stats, llm=None):
 
 def _log_cost(cost):
     """Ledger coverage: wrapped generation counts against the daily cap too."""
-    try:
-        os.makedirs("agent-runs", exist_ok=True)
-        path = os.path.join("agent-runs", time.strftime("run-%Y%m%d-%H%M%S-wrapped.json"))
-        with open(path, "w") as f:
-            json.dump({"metadata": {"cost_usd": cost, "status": "wrapped-generation"},
-                       "trajectory": []}, f)
-    except OSError as exc:
-        logger.warning("Wrapped cost log failed: %s", exc)
+    run_costs.record(time.strftime("wrapped-%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6],
+                     cost, kind="wrapped")
 
 
 def _ensure_cache_table(conn):
@@ -207,7 +193,7 @@ def _cache_get(key):
     conn, driver = get_db_connection()
     if not conn:
         return None
-    p = get_placeholder(driver)
+    p = dialect_for(driver).placeholder
     c = conn.cursor()
     try:
         _ensure_cache_table(conn)
@@ -223,18 +209,14 @@ def _cache_put(key, payload):
     if not conn:
         return
     _ensure_cache_table(conn)
-    p = get_placeholder(driver)
     c = conn.cursor()
     blob = json.dumps(payload, ensure_ascii=False)
     now = time.strftime("%Y-%m-%dT%H:%M:%S")
-    if driver == "postgres":
-        c.execute(f"""INSERT INTO wrapped_editions (period_key, payload, created_at)
-            VALUES ({p}, {p}, {p}) ON CONFLICT (period_key)
-            DO UPDATE SET payload = EXCLUDED.payload, created_at = EXCLUDED.created_at""",
-            (key, blob, now))
-    else:
-        c.execute(f"INSERT OR REPLACE INTO wrapped_editions VALUES ({p}, {p}, {p})",
-                  (key, blob, now))
+    c.execute(
+        dialect_for(driver).upsert(
+            "wrapped_editions", ["period_key", "payload", "created_at"],
+            conflict="period_key", updates=["payload", "created_at"]),
+        (key, blob, now))
     conn.commit()
     conn.close()
 

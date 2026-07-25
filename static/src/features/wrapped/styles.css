@@ -1,0 +1,192 @@
+/* --- Wrapped story: phone-frame modal (v3 — curated fixed designs) --------
+   Drop-in replacement for static/wrapped.css.
+   The LLM no longer chooses colors. Five hand-curated card designs
+   (w-d1…w-d5) are assigned per card type by wrapped.js. Each design fixes
+   background, text color and accent — no palette can break it.
+   */
+
+#aw-wrapped-overlay { position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.78); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Montserrat', sans-serif;
+    animation: w-fade 0.25s ease; }
+@keyframes w-fade { from { opacity: 0; } }
+
+/* Close + pause: viewport corner, like every story UI. No math. */
+#aw-wrapped-close, #aw-wrapped-pause { position: fixed; top: 18px;
+    width: 44px; height: 44px; padding: 0; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: none; color: #fff;
+    font-size: 1.4rem; line-height: 1; cursor: pointer; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Montserrat', sans-serif;
+    transition: background 0.15s; }
+#aw-wrapped-close { right: 22px; }
+#aw-wrapped-pause { right: 74px; font-size: 1rem; }
+#aw-wrapped-close:hover, #aw-wrapped-pause:hover {
+    background: rgba(255,255,255,0.16); }
+#aw-wrapped-close:focus-visible, #aw-wrapped-pause:focus-visible {
+    outline: 2px solid #1ed760; outline-offset: 2px; }
+@media (max-width: 520px) {
+    #aw-wrapped-close { top: 12px; right: 12px; }
+    #aw-wrapped-pause { top: 12px; right: 64px; }
+}
+
+/* Frame: width drives everything; aspect-ratio holds 9:18.5. */
+.w-frame { position: relative;
+    width: min(390px, 92vw, calc(84vh * 9 / 18.5));
+    aspect-ratio: 9 / 18.5;
+    border-radius: 28px; overflow: hidden;
+    box-shadow: 0 30px 100px rgba(0,0,0,0.8);
+    color: var(--w-text, #fff);
+    animation: w-enter 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes w-enter { from { opacity: 0; transform: scale(0.96); } }
+
+/* =========================================================================
+   CURATED DESIGNS — one loud color per card, bold moving shapes
+   ========================================================================= */
+
+/* d1 — hot pink, two spinning dark blocks (intro / discoveries / DJ) */
+.w-d1 { background: #ff2d78;
+    --w-text: #ffffff; --w-accent: #0d0d0d; }
+.w-d1::before { content: ''; position: absolute;
+    width: 72%; aspect-ratio: 1; top: -14%; left: -20%;
+    background: rgba(13,13,13,0.9);
+    animation: w-spin 26s linear infinite; }
+.w-d1::after { content: ''; position: absolute;
+    width: 52%; aspect-ratio: 1; bottom: -12%; right: -16%;
+    background: rgba(13,13,13,0.9);
+    animation: w-spin-rev 34s linear infinite; }
+
+/* d2 — red-orange, drifting zigzag bands (minutes / eras-alt / clock) */
+.w-d2 { background: #ff4632;
+    --w-text: #140b09; --w-accent: #140b09; }
+.w-d2::before, .w-d2::after { content: ''; position: absolute;
+    left: -100px; right: -100px; height: 15%;
+    background: repeating-linear-gradient(135deg,
+        #140b09 0 22px, transparent 22px 44px);
+    animation: w-bg-drift 8s linear infinite; }
+.w-d2::before { top: 0; }
+.w-d2::after { bottom: 0;
+    background: repeating-linear-gradient(45deg,
+        #140b09 0 22px, transparent 22px 44px); }
+
+/* d3 — bubblegum pink, morphing white blob (top songs / artists lists) */
+.w-d3 { background: #f472c8;
+    --w-text: #140b14; --w-accent: #140b14; }
+.w-d3::before { content: ''; position: absolute;
+    width: 80%; aspect-ratio: 1; bottom: -22%; right: -18%;
+    background: rgba(255,255,255,0.4);
+    border-radius: 58% 42% 55% 45% / 45% 58% 42% 55%;
+    animation: w-morph 9s ease-in-out infinite; }
+
+/* d4 — deep purple, spinning rainbow ring (the #1 song / artist) */
+.w-d4 { background: #4b1d9e;
+    --w-text: #ffffff; --w-accent: #ffd23f; }
+.w-d4::before { content: ''; position: absolute;
+    width: 300px; height: 300px; top: -90px; right: -90px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg,
+        #ff2d78, #ffd23f, #1ed760, #2da9ff, #ff2d78);
+    animation: w-spin 14s linear infinite; }
+.w-d4::after { content: ''; position: absolute;
+    width: 248px; height: 248px; top: -64px; right: -64px;
+    border-radius: 50%; background: #4b1d9e; }
+
+/* d5 — brand green, drifting checkerboard (eras / closing) */
+.w-d5 { background: #1ed760;
+    --w-text: #0d0d0d; --w-accent: #0d0d0d; }
+.w-d5::before { content: ''; position: absolute;
+    inset: -60px;
+    background: repeating-conic-gradient(#15c258 0% 25%, transparent 0% 50%);
+    background-size: 112px 112px; opacity: 0.65;
+    animation: w-bg-drift 9s linear infinite; }
+
+@keyframes w-spin { to { transform: rotate(360deg); } }
+@keyframes w-spin-rev { to { transform: rotate(-360deg); } }
+@keyframes w-bg-drift { to { background-position: 112px 112px; } }
+@keyframes w-morph {
+    0%, 100% { border-radius: 58% 42% 55% 45% / 45% 58% 42% 55%; }
+    50% { border-radius: 42% 58% 45% 55% / 55% 42% 58% 45%; } }
+
+/* progress bars — track derives from the design's text color */
+.w-bars { position: absolute; top: 12px; left: 14px; right: 14px;
+    display: flex; gap: 5px; z-index: 2; }
+.w-bar-track { flex: 1; height: 3px; border-radius: 2px;
+    background: rgba(255,255,255,0.3); overflow: hidden; }
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+    .w-bar-track { background:
+        color-mix(in srgb, var(--w-text, #fff) 30%, transparent); }
+}
+.w-bar-fill { height: 100%; width: 0; background: var(--w-text, #fff);
+    border-radius: 2px; }
+@keyframes w-fill { from { width: 0; } to { width: 100%; } }
+
+/* card + staggered entrance (restarts on every innerHTML swap) */
+.w-card { position: absolute; inset: 0; z-index: 1; display: flex;
+    align-items: center; justify-content: center; padding: 40px 30px 30px; }
+.w-card-inner { text-align: center; width: 100%;
+    animation: w-card-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.w-card-inner > * { animation: w-text-in 0.5s
+    cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.w-card-inner > :nth-child(2) { animation-delay: 0.1s; }
+.w-card-inner > :nth-child(3) { animation-delay: 0.2s; }
+.w-card-inner > :nth-child(4) { animation-delay: 0.29s; }
+.w-card-inner > :nth-child(5) { animation-delay: 0.37s; }
+.w-card-inner > :nth-child(6) { animation-delay: 0.44s; }
+@keyframes w-card-in { from { opacity: 0;
+    transform: translateY(34px) scale(0.94) rotate(-1.5deg); } }
+@keyframes w-text-in { from { opacity: 0;
+    transform: translateY(18px) scale(0.97); } }
+
+.w-card-inner h1 { font-size: 1.9rem; font-weight: 900;
+    letter-spacing: -0.5px; margin: 10px 0 6px; }
+.w-card-inner h2 { font-size: 0.8rem; font-weight: 800; letter-spacing: 2.5px;
+    text-transform: uppercase; color: var(--w-accent); margin: 0 0 20px; }
+.w-card-inner p { font-size: 0.9rem; font-weight: 600; opacity: 0.85;
+    margin-top: 6px; }
+.w-sub { font-size: 0.75rem !important; opacity: 0.7 !important; }
+.w-emoji { font-size: 3.2rem; }
+.w-big { font-size: 4.2rem; font-weight: 900; color: var(--w-accent);
+    line-height: 1; letter-spacing: -2px;
+    font-variant-numeric: tabular-nums; }
+.w-name { font-size: 1.5rem; font-weight: 900; margin-top: 12px; }
+.w-art { width: 46%; border-radius: 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.45); }
+.w-art.w-round { border-radius: 50%; }
+
+.w-list { display: flex; flex-direction: column; gap: 14px; text-align: left; }
+.w-row { display: flex; align-items: center; gap: 12px; font-size: 0.95rem;
+    font-weight: 800;
+    animation: w-text-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.w-row:nth-child(1) { animation-delay: 0.16s; }
+.w-row:nth-child(2) { animation-delay: 0.24s; }
+.w-row:nth-child(3) { animation-delay: 0.32s; }
+.w-row:nth-child(4) { animation-delay: 0.4s; }
+.w-row:nth-child(5) { animation-delay: 0.48s; }
+.w-row:nth-child(6) { animation-delay: 0.56s; }
+.w-row:nth-child(7) { animation-delay: 0.64s; }
+.w-row:nth-child(8) { animation-delay: 0.72s; }
+.w-row em { margin-left: auto; font-style: normal; opacity: 0.65;
+    font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.w-rank { color: var(--w-accent); font-weight: 900; width: 20px;
+    font-variant-numeric: tabular-nums; }
+.w-era { width: 44px; font-weight: 900; color: var(--w-accent); }
+.w-bar { height: 8px; border-radius: 4px; background: var(--w-accent); }
+
+.w-tap { position: absolute; top: 0; bottom: 0; z-index: 3; cursor: pointer; }
+.w-tap-left { left: 0; width: 33%; }
+.w-tap-right { right: 0; width: 67%; }
+
+.w-center { position: absolute; inset: 0; display: flex; flex-direction: column;
+    gap: 12px; align-items: center; justify-content: center;
+    color: var(--w-text, #fff); font-size: 1rem; font-weight: 600;
+    padding: 30px; text-align: center; z-index: 1; }
+.w-center i { font-size: 1.6rem; color: var(--w-text, #fff); }
+
+@media (prefers-reduced-motion: reduce) {
+    #aw-wrapped-overlay, .w-frame { animation: none; }
+    .w-d1::before, .w-d1::after, .w-d2::before, .w-d2::after,
+    .w-d3::before, .w-d4::before, .w-d5::before { animation: none; }
+    .w-card-inner, .w-card-inner > *, .w-row {
+        animation: w-fade 0.15s ease both; animation-delay: 0s; }
+}

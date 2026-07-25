@@ -16,7 +16,7 @@ import icalendar
 import recurring_ical_events
 import requests
 
-from logging_config import configure_logger
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 

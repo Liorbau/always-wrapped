@@ -1,0 +1,30 @@
+/* The "CREATE WRAP" entry in the hero — a launcher for the story,
+   styled to match the dashboard's other dropdown surfaces. */
+
+.nav-wrapped { position: relative; cursor: pointer; color: #fff;
+    font-weight: 700; font-size: 0.85rem; letter-spacing: 1px;
+    transition: color 0.15s; }
+.nav-wrapped:hover { color: #1ed760; }
+.nav-wrapped-menu { position: absolute; left: 0; top: 115%;
+    background: #1a1a1a; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 6px; display: none; min-width: 150px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.6); z-index: 100; }
+.nav-wrapped.open .nav-wrapped-menu { display: block; }
+.nav-wrapped-menu div { padding: 10px 14px; border-radius: 8px;
+    font-size: 0.82rem; font-weight: 500; color: #a7a7a7; letter-spacing: 0;
+    transition: background 0.15s, color 0.15s; }
+.nav-wrapped-menu div:hover { background: rgba(255,255,255,0.08);
+    color: #fff; }
+.nav-wrapped-custom { display: flex; flex-direction: column; gap: 6px;
+    cursor: default; }
+.nav-wrapped-custom:hover { background: transparent !important; }
+.nav-wrapped-custom input { background: #101010;
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+    color: #eee; padding: 6px 8px; font-size: 0.75rem;
+    font-family: 'Montserrat', sans-serif; color-scheme: dark; }
+.nav-wrapped-custom input:focus { border-color: #1ed760; outline: none; }
+.nav-wrapped-custom button { background: #1ed760; color: #000; border: none;
+    border-radius: 9999px; padding: 7px 0; font-weight: 700;
+    font-size: 0.75rem; letter-spacing: 0; cursor: pointer;
+    font-family: 'Montserrat', sans-serif; transition: background 0.15s; }
+.nav-wrapped-custom button:hover { background: #1fdf64; }

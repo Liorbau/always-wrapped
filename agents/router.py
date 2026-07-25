@@ -7,9 +7,9 @@ to use a cheaper model for this (e.g. gpt-4o-mini); defaults to the session mode
 
 import os
 
-from agents.harness import _parse_final  # tolerant JSON extraction
+from agents.harness import parse_final  # tolerant JSON extraction
 from agents.llm import get_client
-from logging_config import configure_logger
+from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
@@ -42,7 +42,7 @@ Reply with JSON only: {"route": "<one of the routes above>", "satisfied": true}
 """
 
 
-def _router_client():
+def router_client():
     model = os.getenv("ROUTER_MODEL")
     if not model and os.getenv("LLM_PROVIDER", "openai").lower() == "openai":
         model = "gpt-4o-mini"  # classification is trivial; 16x cheaper than 4o
@@ -55,7 +55,7 @@ def route_message(message, llm=None, context=None):
     context: (previous_user_message, previous_route) so follow-ups like
     "how for example?" stay in the conversation's domain.
     """
-    llm = llm or _router_client()
+    llm = llm or router_client()
     content = message
     if context:
         prev_msg, prev_route = context
@@ -66,7 +66,7 @@ def route_message(message, llm=None, context=None):
             system=ROUTER_PROMPT,
             messages=[{"role": "user", "content": content}],
         )
-        parsed = _parse_final(resp["content"])
+        parsed = parse_final(resp["content"])
         r = parsed.get("route", "")
     except Exception as exc:
         logger.warning("Router failed (%s) — defaulting to data_question", exc)

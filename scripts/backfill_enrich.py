@@ -12,10 +12,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from authentication import auth_connection
-from db_config import get_db_connection, get_placeholder
-from logging_config import configure_logger
-from setup_db import create_database
+from integrations.spotify import auth_connection
+from db.connection import get_db_connection
+from db.dialects import dialect_for
+from core.logging import configure_logger
+from db.schema import create_database
 
 logger = configure_logger(__name__)
 
@@ -29,7 +30,7 @@ def _chunks(seq, size=BATCH):
 
 def backfill_artist_ids(sp, conn, driver):
     """Recover artist_id for legacy rows (pre-artist_id schema) via track_id."""
-    p = get_placeholder(driver)
+    p = dialect_for(driver).placeholder
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -64,7 +65,7 @@ def backfill_artist_ids(sp, conn, driver):
 
 def backfill_genres(sp, conn, driver):
     """Fill artist_genres for every artist_id that has never been fetched."""
-    p = get_placeholder(driver)
+    p = dialect_for(driver).placeholder
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -98,7 +99,7 @@ def backfill_genres(sp, conn, driver):
 
 def backfill_durations(sp, conn, driver):
     """Fill duration_ms for every track_id missing it."""
-    p = get_placeholder(driver)
+    p = dialect_for(driver).placeholder
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -130,7 +131,7 @@ def backfill_durations(sp, conn, driver):
 
 def backfill_release_dates(sp, conn, driver):
     """Fill album_release_date for every track_id missing it."""
-    p = get_placeholder(driver)
+    p = dialect_for(driver).placeholder
     cursor = conn.cursor()
     cursor.execute(
         """

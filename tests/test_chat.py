@@ -3,21 +3,73 @@
 Runnable directly:  ./venv/bin/python tests/test_chat.py
 """
 
+import contextlib
 import json
 import os
 import sys
-import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.ledger import daily_spent, budget_left
+from agents import notifications
 from agents.router import route_message
-from agents.spotify_push import push_playlist
+from integrations.spotify import push_playlist
+from agents.store import hitl
+from app.modules.agent_api import planning, proposals, runner, runs, sessions
+from app.modules.agent_api.orchestrators import send_chat, trigger_evaluator
 from tests.test_harness import FakeLLM
+from tests.test_store import temp_db
 
 import server
-import agents.api as agents_api
+
+
+class RecordingNotifier:
+    """Stand-in for any push channel — records instead of reaching the network."""
+
+    name = "recording"
+
+    def __init__(self):
+        self.proposals = []
+        self.messages = []
+
+    def enabled(self):
+        return True
+
+    def send_proposal(self, block, playlist, proposal_id, recipient=None):
+        self.proposals.append(proposal_id)
+        return {"card": proposal_id}
+
+    def send_message(self, recipient, text):
+        self.messages.append((recipient, text))
+        return True
+
+    def acknowledge(self, interaction_id, text=""):
+        return True
+
+    def update_card(self, card_ref, text):
+        return True
+
+
+@contextlib.contextmanager
+def recording_notifier():
+    notifier = notifications.set_notifier(RecordingNotifier())
+    try:
+        yield notifier
+    finally:
+        notifications.reset_notifier()
+
+
+@contextlib.contextmanager
+def patched(*targets):
+    """Temporarily set (module, attribute, value) triples; always restore."""
+    originals = [(obj, name, getattr(obj, name)) for obj, name, _ in targets]
+    for obj, name, value in targets:
+        setattr(obj, name, value)
+    try:
+        yield
+    finally:
+        for obj, name, value in originals:
+            setattr(obj, name, value)
 
 
 def test_router_classifies_and_falls_back():
@@ -37,18 +89,6 @@ def test_router_followup_context():
     r = route_message("how for example?", llm=llm,
                       context=("build me a 2h hebrew playlist", "playlist_request"))
     assert r == "playlist_request"
-
-
-def test_ledger_sums_today_only():
-    with tempfile.TemporaryDirectory() as tmp:
-        day = time.strftime("%Y%m%d")
-        for name, cost in ((f"run-{day}-010101.json", 0.30),
-                           (f"run-{day}-020202.json", 0.20),
-                           ("run-20200101-000000.json", 9.99)):
-            with open(os.path.join(tmp, name), "w") as f:
-                json.dump({"metadata": {"cost_usd": cost}}, f)
-        assert abs(daily_spent(run_dir=tmp) - 0.50) < 1e-9
-        assert budget_left(run_dir=tmp) > 0
 
 
 class FakePushSpotify:
@@ -88,35 +128,31 @@ def _poll(client, run_id, timeout=5.0):
 
 
 def test_endpoint_flow_propose_approve_reject():
-    import agents.dj as dj_mod
+    from agents.dj import ground_truth, verifier
+
     client = server.app.test_client()
-    originals = (agents_api.route_message, agents_api.get_client,
-                 agents_api.push_playlist, agents_api.budget_left,
-                 dj_mod.verify_playlist, agents_api.REJECTIONS_LOG)
     pushed = []
-    PROPOSAL_JSON = json.dumps({
+    proposal_json = json.dumps({
         "thought": "t", "response": "here you go", "satisfied": True,
         "playlist": {"name": "Mix", "target_duration_min": 45,
                      "candidates": [{"track_id": "t1", "fit": 0.9}]}})
-    with tempfile.TemporaryDirectory() as tmp:
-        agents_api.budget_left = lambda: 1.0
-        agents_api.route_message = lambda m, context=None: {
-            "cake": "off_topic", "mix": "playlist_request"}.get(m, "data_question")
-        agents_api.get_client = lambda provider=None, model=None: FakeLLM([
-            {"content": PROPOSAL_JSON}])
-        agents_api.push_playlist = lambda pl: (pushed.append(pl) or
-                                               {"playlist_id": "pl1", "url": "u", "track_count": 1})
-        agents_api.REJECTIONS_LOG = os.path.join(tmp, "rejections.jsonl")
-        original_pushes = agents_api.PUSHES_LOG
-        agents_api.PUSHES_LOG = os.path.join(tmp, "pushes.jsonl")
-        dj_mod.verify_playlist = lambda pl: []
-        original_reality = dj_mod._reality
-        dj_mod._reality = lambda tracks: {
-            "t1": {"artist": "X", "duration_ms": 45 * 60000, "plays": 5}}
-        # route run logs to tmp, not the real evidence dir
-        real_build_dj, real_build_analyst = agents_api.build_dj, agents_api.build_analyst
-        agents_api.build_dj = lambda llm=None: real_build_dj(llm=llm, run_dir=tmp)
-        agents_api.build_analyst = lambda llm=None: real_build_analyst(llm=llm, run_dir=tmp)
+    real_build_dj, real_build_analyst = runner.build_dj, runner.build_analyst
+
+    with temp_db(), patched(
+        (send_chat, "budget_left", lambda: 1.0),
+        (send_chat, "route_message", lambda m, context=None: {
+            "cake": "off_topic", "mix": "playlist_request"}.get(m, "data_question")),
+        (runner, "get_client", lambda provider=None, model=None: FakeLLM([
+            {"content": proposal_json}])),
+        (runner, "build_dj", real_build_dj),
+        (runner, "build_analyst", real_build_analyst),
+        (proposals, "push_playlist", lambda pl: (pushed.append(pl) or
+                                                 {"playlist_id": "pl1", "url": "u",
+                                                  "track_count": 1})),
+        (verifier, "verify_playlist", lambda pl: []),
+        (ground_truth, "reality", lambda tracks: {
+            "t1": {"artist": "X", "duration_ms": 45 * 60000, "plays": 5}}),
+    ):
         try:
             # off-topic refused synchronously, no run started
             r = client.post("/api/agent/chat", json={"message": "cake"})
@@ -126,28 +162,30 @@ def test_endpoint_flow_propose_approve_reject():
             r = client.post("/api/agent/chat", json={"message": "mix", "session_id": "s1"})
             assert r.status_code == 202
             body = r.get_json()
+            assert body["type"] == "run_started"
             assert body["route"] == "playlist_request" and body["session_id"] == "s1"
-            done = _poll(client, body["run_id"])
-            result = done["result"]
+            result = _poll(client, body["run_id"])["result"]
             assert result["type"] == "playlist_proposal" and not pushed
             pid = result["proposal_id"]
 
             # multi-turn: same session reuses the SAME dj harness object
-            dj_first = agents_api.SESSIONS["s1"]["dj"]
+            dj_first = sessions.SESSIONS["s1"]["dj"]
             r2 = client.post("/api/agent/chat", json={"message": "mix", "session_id": "s1"})
             _poll(client, r2.get_json()["run_id"])
-            assert agents_api.SESSIONS["s1"]["dj"] is dj_first
+            assert sessions.SESSIONS["s1"]["dj"] is dj_first
 
             # provider switch resets the session (fresh conversation)
             r3 = client.post("/api/agent/chat",
                              json={"message": "mix", "session_id": "s1", "provider": "anthropic"})
             _poll(client, r3.get_json()["run_id"])
-            assert agents_api.SESSIONS["s1"]["dj"] is not dj_first
+            assert sessions.SESSIONS["s1"]["dj"] is not dj_first
 
             # approve -> exactly one push, proposal consumed
             r = client.post("/api/agent/approve", json={"proposal_id": pid}).get_json()
             assert r["type"] == "pushed" and len(pushed) == 1
-            assert client.post("/api/agent/approve", json={"proposal_id": pid}).status_code == 404
+            repeat = client.post("/api/agent/approve", json={"proposal_id": pid})
+            assert repeat.status_code == 404
+            assert repeat.get_json()["error"]["code"] == "NOT_FOUND"
 
             # reject with reason -> logged for the Evaluator, never pushed
             pid2 = _poll(client, client.post(
@@ -156,20 +194,23 @@ def test_endpoint_flow_propose_approve_reject():
             r = client.post("/api/agent/reject",
                             json={"proposal_id": pid2, "reason": "too mellow"}).get_json()
             assert r["type"] == "rejected" and len(pushed) == 1
-            logged = json.loads(open(agents_api.REJECTIONS_LOG).read().strip())
+            [logged] = hitl.recent(hitl.REJECTED)
             assert logged["reason"] == "too mellow"
 
+            # empty message is rejected at the edge with the shared envelope
+            bad = client.post("/api/agent/chat", json={"message": "   "})
+            assert bad.status_code == 400
+            assert bad.get_json()["error"]["code"] == "VALIDATION_ERROR"
+
             # budget exhausted -> 429
-            agents_api.budget_left = lambda: -0.01
-            assert client.post("/api/agent/chat", json={"message": "mix"}).status_code == 429
+            send_chat.budget_left = lambda: -0.01
+            over = client.post("/api/agent/chat", json={"message": "mix"})
+            assert over.status_code == 429
+            assert over.get_json()["error"]["code"] == "BUDGET_EXHAUSTED"
         finally:
-            (agents_api.route_message, agents_api.get_client, agents_api.push_playlist,
-             agents_api.budget_left, dj_mod.verify_playlist,
-             agents_api.REJECTIONS_LOG) = originals
-            dj_mod._reality = original_reality
-            agents_api.build_dj, agents_api.build_analyst = real_build_dj, real_build_analyst
-            agents_api.PUSHES_LOG = original_pushes
-            agents_api.SESSIONS.clear()
+            sessions.clear()
+            runs.clear()
+            proposals.clear()
 
 
 def test_observatory_endpoints():
@@ -180,115 +221,113 @@ def test_observatory_endpoints():
     assert r["active"] is None or "agent" in r["active"]
 
 
-def test_evaluator_trigger_endpoint():
-    import time as _t
+def test_unknown_run_uses_the_error_envelope():
     client = server.app.test_client()
-    originals = (agents_api.build_evaluator, agents_api.run_evaluator, agents_api.budget_left)
-    agents_api.budget_left = lambda: 1.0
-    agents_api.build_evaluator = lambda: type("H", (), {"event_hook": None, "trajectory": [],
-                                                        "metadata": {"cost_usd": 0}})()
-    agents_api.run_evaluator = lambda harness=None: {"report": "learned stuff",
-                                                     "applied": 2, "cost_usd": 0.01}
-    try:
-        r = client.post("/api/agent/evaluate")
-        assert r.status_code == 202
-        rid = r.get_json()["run_id"]
-        deadline = _t.time() + 3
-        while _t.time() < deadline:
-            s = client.get(f"/api/agent/run/{rid}").get_json()
-            if s.get("done"):
-                assert s["result"]["response"] == "learned stuff"
-                break
-            _t.sleep(0.02)
-        else:
-            raise AssertionError("evaluator run never finished")
-        feed = client.get("/api/agent/activity").get_json()["events"]
-        assert any("learned 2 preference" in e["text"] for e in feed)
-    finally:
-        (agents_api.build_evaluator, agents_api.run_evaluator, agents_api.budget_left) = originals
+    r = client.get("/api/agent/run/does-not-exist")
+    assert r.status_code == 404
+    assert r.get_json()["error"] == {"code": "NOT_FOUND", "message": "Unknown run.",
+                                     "details": {}}
 
+
+def test_evaluator_trigger_endpoint():
+    client = server.app.test_client()
+    fake_harness = type("H", (), {"event_hook": None, "trajectory": [],
+                                  "metadata": {"cost_usd": 0}})()
+    with patched(
+        (trigger_evaluator, "budget_left", lambda: 1.0),
+        (trigger_evaluator, "build_evaluator", lambda: fake_harness),
+        (runner, "run_evaluator", lambda harness=None: {"report": "learned stuff",
+                                                        "applied": 2, "cost_usd": 0.01}),
+    ):
+        try:
+            r = client.post("/api/agent/evaluate")
+            assert r.status_code == 202
+            done = _poll(client, r.get_json()["run_id"], timeout=3)
+            assert done["result"]["response"] == "learned stuff"
+            feed = client.get("/api/agent/activity").get_json()["events"]
+            assert any("learned 2 preference" in e["text"] for e in feed)
+        finally:
+            runs.clear()
 
 
 def test_telegram_webhook_secret_and_actions():
     """The webhook is a write trigger — secret gates it; approve pushes, reject discards."""
     client = server.app.test_client()
-    originals = (agents_api.push_playlist, agents_api.REJECTIONS_LOG, agents_api.PUSHES_LOG)
     pushed = []
     os.environ["TELEGRAM_WEBHOOK_SECRET"] = "s3cr3t"
     os.environ["TELEGRAM_CHAT_ID"] = "42"  # owner id for the callback owner-check
     os.environ.pop("TELEGRAM_BOT_TOKEN", None)  # telegram calls no-op (no network)
-    with tempfile.TemporaryDirectory() as tmp:
-        agents_api.push_playlist = lambda pl: (pushed.append(pl) or {"url": "u"})
-        agents_api.REJECTIONS_LOG = os.path.join(tmp, "rej.jsonl")
-        agents_api.PUSHES_LOG = os.path.join(tmp, "push.jsonl")
-        try:
-            def cb(pid, action, uid=42):
-                return {"callback_query": {"id": "c1", "from": {"id": uid},
-                                           "data": f"{action}:{pid}"}}
 
+    def cb(pid, action, uid=42):
+        return {"callback_query": {"id": "c1", "from": {"id": uid},
+                                   "data": f"{action}:{pid}"}}
+
+    with temp_db(), patched(
+        (proposals, "push_playlist", lambda pl: (pushed.append(pl) or {"url": "u"})),
+    ):
+        try:
             # wrong secret -> 403, nothing touched
-            agents_api.PENDING_PROPOSALS["p1"] = {"name": "A", "tracks": [{"track_id": "t1"}]}
+            proposals.PENDING["p1"] = {"name": "A", "tracks": [{"track_id": "t1"}]}
             r = client.post("/api/agent/telegram/webhook", json=cb("p1", "approve"),
                             headers={"X-Telegram-Bot-Api-Secret-Token": "wrong"})
-            assert r.status_code == 403 and not pushed and "p1" in agents_api.PENDING_PROPOSALS
+            assert r.status_code == 403 and not pushed and "p1" in proposals.PENDING
+            assert r.get_json()["error"]["code"] == "FORBIDDEN"
 
             # right secret but a non-owner tapper -> ignored, nothing pushed
             r = client.post("/api/agent/telegram/webhook", json=cb("p1", "approve", uid=999),
                             headers={"X-Telegram-Bot-Api-Secret-Token": "s3cr3t"})
-            assert r.status_code == 200 and not pushed and "p1" in agents_api.PENDING_PROPOSALS
+            assert r.status_code == 200 and not pushed and "p1" in proposals.PENDING
 
             # right secret + approve -> pushed once, proposal consumed
             r = client.post("/api/agent/telegram/webhook", json=cb("p1", "approve"),
                             headers={"X-Telegram-Bot-Api-Secret-Token": "s3cr3t"})
             assert r.status_code == 200 and len(pushed) == 1
-            assert "p1" not in agents_api.PENDING_PROPOSALS
+            assert "p1" not in proposals.PENDING
 
             # right secret + reject -> discarded + logged, no extra push
-            agents_api.PENDING_PROPOSALS["p2"] = {"name": "B", "tracks": []}
+            proposals.PENDING["p2"] = {"name": "B", "tracks": []}
             r = client.post("/api/agent/telegram/webhook", json=cb("p2", "reject"),
                             headers={"X-Telegram-Bot-Api-Secret-Token": "s3cr3t"})
             assert r.status_code == 200 and len(pushed) == 1
-            assert "p2" not in agents_api.PENDING_PROPOSALS
-            assert json.loads(open(agents_api.REJECTIONS_LOG).read().strip())["playlist"]["name"] == "B"
+            assert "p2" not in proposals.PENDING
+            [logged] = hitl.recent(hitl.REJECTED)
+            assert logged["playlist"]["name"] == "B"
         finally:
-            (agents_api.push_playlist, agents_api.REJECTIONS_LOG,
-             agents_api.PUSHES_LOG) = originals
             os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
             os.environ.pop("TELEGRAM_CHAT_ID", None)
-            agents_api.PENDING_PROPOSALS.clear()
+            proposals.clear()
 
 
 def test_plan_trigger_registers_proposals():
     """POST /plan runs the Planner in the background and registers its proposals."""
-    import time as _t
     client = server.app.test_client()
-    originals = (agents_api.plan_tomorrow, agents_api.budget_left)
-    sent = []
-    agents_api.budget_left = lambda: 1.0
-    agents_api.plan_tomorrow = lambda: {"date": "2026-07-09", "cost_usd": 0.02, "proposals": [
+    plan_result = {"date": "2026-07-09", "cost_usd": 0.02, "proposals": [
         {"block": {"title": "Morning run", "start": "07:00"},
          "brief": "b", "playlist": {"name": "Run Fuel", "tracks": []}, "response": "r"}]}
-    orig_send = agents_api.telegram.send_proposal
-    agents_api.telegram.send_proposal = lambda block, pl, pid, chat_id=None: (
-        sent.append(pid) or {"result": {}})
-    try:
-        r = client.post("/api/agent/plan")
-        assert r.status_code == 202
-        deadline = _t.time() + 3
-        while _t.time() < deadline and agents_api._planner_busy["on"]:
-            _t.sleep(0.02)
-        assert len(sent) == 1                       # one Telegram notification sent (bonus channel)
-        assert any(v["name"] == "Run Fuel" for v in agents_api.PENDING_PROPOSALS.values())
-        # in-app path: proposals queued + exposed via /plan/proposals with their ids
-        pj = client.get("/api/agent/plan/proposals").get_json()
-        assert pj["running"] is False and len(pj["proposals"]) == 1
-        p0 = pj["proposals"][0]
-        assert p0["playlist"]["name"] == "Run Fuel" and p0["block"]["title"] == "Morning run"
-        assert p0["proposal_id"] in agents_api.PENDING_PROPOSALS   # approvable in-app
-    finally:
-        (agents_api.plan_tomorrow, agents_api.budget_left) = originals
-        agents_api.telegram.send_proposal = orig_send
-        agents_api.PENDING_PROPOSALS.clear()
+
+    with recording_notifier() as notifier, patched(
+        (planning, "budget_left", lambda: 1.0),
+        (planning, "plan_tomorrow", lambda: plan_result),
+    ):
+        try:
+            assert client.post("/api/agent/plan").status_code == 202
+            deadline = time.time() + 3
+            while time.time() < deadline and planning._busy["on"]:
+                time.sleep(0.02)
+
+            assert len(notifier.proposals) == 1  # pushed to the channel (bonus path)
+            assert any(v["name"] == "Run Fuel" for v in proposals.PENDING.values())
+
+            # in-app path: proposals exposed via /plan/proposals with their ids
+            pj = client.get("/api/agent/plan/proposals").get_json()
+            assert pj["running"] is False and len(pj["proposals"]) == 1
+            p0 = pj["proposals"][0]
+            assert p0["playlist"]["name"] == "Run Fuel" and p0["block"]["title"] == "Morning run"
+            assert p0["proposal_id"] in proposals.PENDING  # approvable in-app
+            assert p0["proposal_id"] in planning.CARD_REFS  # card kept for updates
+        finally:
+            proposals.clear()
+            planning.CARD_REFS.clear()
 
 
 def test_telegram_plan_command():
@@ -298,30 +337,30 @@ def test_telegram_plan_command():
     os.environ["TELEGRAM_CHAT_ID"] = "42"
     os.environ.pop("TELEGRAM_BOT_TOKEN", None)  # telegram send is a no-op
     calls = []
-    orig = agents_api._start_planner_run
-    agents_api._start_planner_run = lambda: (calls.append(1), (True, ""))[1]
-    try:
-        hdr = {"X-Telegram-Bot-Api-Secret-Token": "s3cr3t"}
-        r = client.post("/api/agent/telegram/webhook",
-                        json={"message": {"chat": {"id": 42}, "text": "/plan"}}, headers=hdr)
-        assert r.status_code == 200 and len(calls) == 1
-        # non-owner /plan -> ignored, planner NOT started
-        r2 = client.post("/api/agent/telegram/webhook",
-                         json={"message": {"chat": {"id": 999}, "text": "/plan"}}, headers=hdr)
-        assert r2.get_json().get("type") == "ignored" and len(calls) == 1
-    finally:
-        agents_api._start_planner_run = orig
-        os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
-        os.environ.pop("TELEGRAM_CHAT_ID", None)
+
+    with patched((planning, "start", lambda: (calls.append(1), (True, ""))[1])):
+        try:
+            hdr = {"X-Telegram-Bot-Api-Secret-Token": "s3cr3t"}
+            r = client.post("/api/agent/telegram/webhook",
+                            json={"message": {"chat": {"id": 42}, "text": "/plan"}}, headers=hdr)
+            assert r.status_code == 200 and len(calls) == 1
+            # non-owner /plan -> ignored, planner NOT started
+            r2 = client.post("/api/agent/telegram/webhook",
+                             json={"message": {"chat": {"id": 999}, "text": "/plan"}}, headers=hdr)
+            assert r2.get_json().get("type") == "ignored" and len(calls) == 1
+        finally:
+            os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
+            os.environ.pop("TELEGRAM_CHAT_ID", None)
 
 
 if __name__ == "__main__":
     test_router_classifies_and_falls_back()
     test_router_followup_context()
-    test_ledger_sums_today_only()
     test_push_playlist_private_with_ids()
     test_endpoint_flow_propose_approve_reject()
     test_observatory_endpoints()
+    test_unknown_run_uses_the_error_envelope()
+    test_evaluator_trigger_endpoint()
     test_telegram_webhook_secret_and_actions()
     test_plan_trigger_registers_proposals()
     test_telegram_plan_command()
