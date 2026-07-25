@@ -150,9 +150,14 @@ def test_supply_loop_merges_incremental_candidates():
         {"content": json.dumps(small)},
         {"content": json.dumps(increment)},
     ])
+    original_gc = candidates.gap_candidates
+    candidates.gap_candidates = lambda *a, **k: []    # the merge is the only source
     def go():
         return request_playlist("45 min", llm=llm, max_steps=5)
-    out = with_reality(pool_reality(), go)
+    try:
+        out = with_reality(pool_reality(), go)
+    finally:
+        candidates.gap_candidates = original_gc
     assert llm.calls == 2                        # exactly one supply round
     assert out["playlist"] is not None and out["note"] is None
     assert out["playlist"]["total_duration_min"] >= 33.8  # merged pool filled the window
