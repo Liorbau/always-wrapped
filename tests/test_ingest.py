@@ -11,6 +11,8 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tests import sandbox  # noqa: F401  — must precede every app import
+
 from pipelines.collector import build_track_row
 
 SAMPLE_ITEM = {

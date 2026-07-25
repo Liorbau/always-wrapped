@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tests import sandbox  # noqa: F401  — must precede every app import
+
 from agents.tools.calendar import tomorrow_blocks, _is_meeting
 
 # 'today' is pinned to 2026-07-08, so 'tomorrow' = 2026-07-09.
