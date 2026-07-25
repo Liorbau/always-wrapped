@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tests import sandbox  # noqa: F401  — must precede every app import
 
 from agents import timers
+from db import settings as db_settings
 
 
 def _patch_db(path):
@@ -22,6 +23,7 @@ def _patch_db(path):
         conn = sqlite3.connect(path)
         return conn, "sqlite"
     timers.get_db_connection = _connect
+    db_settings.get_db_connection = _connect
 
 
 def test_expand_days():
@@ -65,6 +67,47 @@ def test_daily_due():
     assert not timers.daily_due("21:00", datetime.datetime(2026, 7, 8, 22, 1), None)   # past grace
 
 
+def test_parse_plantime():
+    assert timers.parse_plantime("/plantime 7:30") == {"at": "07:30"}
+    assert timers.parse_plantime("/plantime OFF") == {"at": None}
+    assert timers.parse_plantime("/plantime") == {}       # no argument: just report
+    assert "error" in timers.parse_plantime("/plantime 25:99")
+    assert "error" in timers.parse_plantime("/plantime whenever")
+
+
+def test_planner_time_is_off_until_the_owner_picks_one():
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        _patch_db(tmp.name)
+        assert timers.planner_time() is None
+        timers.set_planner_time("21:00")
+        assert timers.planner_time() == "21:00"
+        timers.set_planner_time("07:15")                  # overwrites, not appends
+        assert timers.planner_time() == "07:15"
+        timers.set_planner_time(None)
+        assert timers.planner_time() is None
+
+
+def test_daily_hhmm_rereads_a_callable_every_tick():
+    assert timers.daily_hhmm(("21:00", None)) == "21:00"
+    schedule = ["21:00"]
+    daily = (lambda: schedule[0], None)
+    assert timers.daily_hhmm(daily) == "21:00"
+    schedule[0] = None                                    # switched off mid-run
+    assert timers.daily_hhmm(daily) is None
+
+
+def test_plantime_command_roundtrip():
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        _patch_db(tmp.name)
+        assert "is off" in timers.handle_command("/plantime", "42")
+        assert "21:00" in timers.handle_command("/plantime 21:00", "42")
+        assert "21:00" in timers.handle_command("/plantime", "42")
+        assert "use HH:MM" in timers.handle_command("/plantime nope", "42")
+        assert timers.planner_time() == "21:00"           # a bad edit changes nothing
+        assert "off" in timers.handle_command("/plantime off", "42")
+        assert timers.planner_time() is None
+
+
 def test_command_roundtrip():
     with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
         _patch_db(tmp.name)
@@ -83,6 +126,10 @@ if __name__ == "__main__":
     test_daily_due()
     test_expand_days()
     test_parse_timer()
+    test_parse_plantime()
+    test_planner_time_is_off_until_the_owner_picks_one()
+    test_daily_hhmm_rereads_a_callable_every_tick()
+    test_plantime_command_roundtrip()
     test_due_window()
     test_command_roundtrip()
     print("test_timers: all passed")
