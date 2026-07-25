@@ -96,12 +96,14 @@ def test_router_followup_context():
 class FakePushSpotify:
     def __init__(self):
         self.added = None
+        self.description = None
 
     def current_user(self):
         return {"id": "lior"}
 
     def user_playlist_create(self, user_id, name, public, description):
         assert public is False, "playlists must be private"
+        self.description = description
         return {"id": "pl1", "external_urls": {"spotify": "https://spotify/pl1"}}
 
     def playlist_add_items(self, playlist_id, ids):
@@ -116,7 +118,19 @@ def test_push_playlist_private_with_ids():
     )
     assert out["url"] == "https://spotify/pl1"
     assert sp.added == ("pl1", ["t1", "t2"])
+    assert sp.description == "d — built by the Always-Wrapped DJ, just for you."
     assert push_playlist({"tracks": []}, sp=sp)["error"]
+
+
+def test_push_playlist_description_respects_spotify_limit():
+    """A long DJ description must not push the signature past Spotify's 300."""
+    sp = FakePushSpotify()
+    push_playlist(
+        {"name": "Mix", "description": "x" * 500, "tracks": [{"track_id": "t1"}]},
+        sp=sp,
+    )
+    assert len(sp.description) == 300
+    assert sp.description.endswith("just for you.")
 
 
 def _poll(client, run_id, timeout=5.0):
@@ -359,6 +373,7 @@ if __name__ == "__main__":
     test_router_classifies_and_falls_back()
     test_router_followup_context()
     test_push_playlist_private_with_ids()
+    test_push_playlist_description_respects_spotify_limit()
     test_endpoint_flow_propose_approve_reject()
     test_observatory_endpoints()
     test_unknown_run_uses_the_error_envelope()

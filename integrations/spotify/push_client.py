@@ -24,6 +24,8 @@ load_dotenv()
 logger = configure_logger(__name__)
 
 PUSH_SCOPE = "playlist-modify-private ugc-image-upload"
+SIGNATURE = " — built by the Always-Wrapped DJ, just for you."
+DESCRIPTION_LIMIT = 300  # Spotify's cap; the signature has to fit inside it
 PUSH_CACHE = SPOTIFY_PUSH_CACHE
 COVER_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -78,8 +80,9 @@ def push_playlist(playlist, sp=None):
             user_id,
             playlist.get("name") or "Always-Wrapped DJ",
             public=False,
-            description=(playlist.get("description") or "")[:250]
-            + " — built by the Always-Wrapped DJ, approved by you.",
+            description=(playlist.get("description") or "")[
+                : DESCRIPTION_LIMIT - len(SIGNATURE)
+            ] + SIGNATURE,
         )
         sp.playlist_add_items(created["id"], ids)
     except Exception as exc:
