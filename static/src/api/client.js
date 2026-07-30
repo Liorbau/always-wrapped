@@ -20,6 +20,7 @@ async function request(path, { method = 'GET', body } = {}) {
     try {
         response = await fetch(path, {
             method,
+            credentials: 'same-origin',
             headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
             body: body === undefined ? undefined : JSON.stringify(body),
         });

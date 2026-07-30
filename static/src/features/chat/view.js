@@ -3,7 +3,7 @@
 import { byId, esc } from '../../shared/dom.js';
 import { BUBBLE_ICON, TRANSCRIPT_KEY } from './constants.js';
 
-export function mountPanel({ onSend, onStop, onClear, onToggle }) {
+export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock }) {
     const root = byId('aw-chat-root');
     if (!root) return false;
 
@@ -14,6 +14,15 @@ export function mountPanel({ onSend, onStop, onClear, onToggle }) {
                 <span class="aw-chat-title">AI Wrapped<span class="green-dot">.</span></span>
                 <button class="aw-chat-clear" title="Clear conversation"><i class="fas fa-trash-can"></i></button>
                 <button class="aw-chat-close" title="Close">&times;</button>
+            </div>
+            <div id="aw-unlock" class="aw-hidden">
+                <p class="aw-unlock-copy">Enter the owner password to use the DJ and push playlists.</p>
+                <form id="aw-unlock-form">
+                    <input id="aw-unlock-input" type="password" autocomplete="current-password"
+                           placeholder="Password" />
+                    <button type="submit">Unlock</button>
+                </form>
+                <p id="aw-unlock-error" class="aw-unlock-error aw-hidden"></p>
             </div>
             <div id="aw-chat-messages"></div>
             <form id="aw-chat-form">
@@ -30,7 +39,45 @@ export function mountPanel({ onSend, onStop, onClear, onToggle }) {
     root.querySelector('.aw-chat-clear').addEventListener('click', onClear);
     byId('aw-chat-form').addEventListener('submit', onSend);
     byId('aw-stop').addEventListener('click', onStop);
+    byId('aw-unlock-form').addEventListener('submit', onUnlock);
     return true;
+}
+
+export function panelIsOpen() {
+    return !byId('aw-chat-panel').classList.contains('aw-hidden');
+}
+
+export function showUnlockGate(errorMessage) {
+    byId('aw-unlock').classList.remove('aw-hidden');
+    byId('aw-chat-messages').classList.add('aw-hidden');
+    byId('aw-chat-form').classList.add('aw-hidden');
+    const err = byId('aw-unlock-error');
+    if (errorMessage) {
+        err.textContent = errorMessage;
+        err.classList.remove('aw-hidden');
+    } else {
+        err.textContent = '';
+        err.classList.add('aw-hidden');
+    }
+    byId('aw-unlock-input').focus();
+}
+
+export function hideUnlockGate() {
+    byId('aw-unlock').classList.add('aw-hidden');
+    byId('aw-chat-messages').classList.remove('aw-hidden');
+    byId('aw-chat-form').classList.remove('aw-hidden');
+    byId('aw-unlock-error').classList.add('aw-hidden');
+    byId('aw-unlock-input').value = '';
+}
+
+export function unlockInputValue() {
+    return byId('aw-unlock-input').value;
+}
+
+export function setUnlockBusy(busy) {
+    const form = byId('aw-unlock-form');
+    form.querySelector('button').disabled = busy;
+    byId('aw-unlock-input').disabled = busy;
 }
 
 export function togglePanel() {

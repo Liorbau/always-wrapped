@@ -15,6 +15,7 @@ const chat = {
     sessionId: localStorage.getItem(SESSION_KEY) || null,
     busy: false,
     runId: null,
+    unlocked: false,
 };
 
 let requestWrapped = () => {};
@@ -25,9 +26,50 @@ export function init({ onWrappedRequest } = {}) {
         onSend: send,
         onStop: stop,
         onClear: clearConversation,
-        onToggle: view.togglePanel,
+        onToggle: toggle,
+        onUnlock: unlock,
     });
-    if (mounted) view.restoreTranscript();
+    if (mounted) {
+        view.restoreTranscript();
+        refreshUnlockStatus();
+    }
+}
+
+async function refreshUnlockStatus() {
+    try {
+        const status = await api.unlockStatus();
+        chat.unlocked = Boolean(status.unlocked);
+    } catch {
+        chat.unlocked = false;
+    }
+}
+
+async function toggle() {
+    view.togglePanel();
+    if (!view.panelIsOpen()) return;
+    await refreshUnlockStatus();
+    if (chat.unlocked) view.hideUnlockGate();
+    else view.showUnlockGate();
+}
+
+async function unlock(event) {
+    event.preventDefault();
+    const token = view.unlockInputValue();
+    if (!token) {
+        view.showUnlockGate('Enter the password.');
+        return;
+    }
+    view.setUnlockBusy(true);
+    try {
+        await api.unlock(token);
+        chat.unlocked = true;
+        view.hideUnlockGate();
+    } catch (error) {
+        chat.unlocked = false;
+        view.showUnlockGate(error.message || 'Wrong password.');
+    } finally {
+        view.setUnlockBusy(false);
+    }
 }
 
 function setBusy(busy) {

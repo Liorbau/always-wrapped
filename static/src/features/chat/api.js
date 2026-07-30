@@ -1,5 +1,15 @@
 import { apiGet, apiPost } from '../../api/client.js';
 
+export async function unlock(token) {
+    const { data } = await apiPost('/api/owner/unlock', { token });
+    return data;
+}
+
+export async function unlockStatus() {
+    const { data } = await apiGet('/api/owner/status');
+    return data;
+}
+
 export async function sendMessage(message, sessionId) {
     const { data } = await apiPost('/api/agent/chat', { message, session_id: sessionId });
     return data;
