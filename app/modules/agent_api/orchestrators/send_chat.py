@@ -7,6 +7,7 @@ from agents.llm import PROVIDERS
 from agents.router import route_message
 from app.errors import budget_exhausted, validation_error
 from app.modules.agent_api import events, planning, runner, runs, sessions, wrap_spec
+from app.modules.agent_api.orchestrators import planner_schedule
 
 REFUSAL_TEXT = (
     "I'm your music companion — I can build playlists and answer questions "
@@ -29,6 +30,10 @@ def execute(message, session_id=None, provider=None):
     provider = (provider or "").lower() or None
     if provider and provider not in PROVIDERS:
         raise validation_error(f"Unknown provider {provider!r}.", {"provider": provider})
+    if message.lower().startswith("/plantime"):
+        # Exact command — no LLM, same semantics as Telegram /plantime.
+        return planner_schedule.from_chat_command(message)
+
     if budget_left() <= 0:
         raise budget_exhausted(CHAT_OVER_BUDGET)
 

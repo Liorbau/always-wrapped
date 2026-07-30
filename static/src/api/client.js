@@ -49,6 +49,10 @@ export function apiPost(path, body = {}) {
     return request(path, { method: 'POST', body });
 }
 
+export function apiPut(path, body = {}) {
+    return request(path, { method: 'PUT', body });
+}
+
 export function query(params) {
     const search = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {

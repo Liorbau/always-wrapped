@@ -3,7 +3,7 @@
 import { byId, esc } from '../../shared/dom.js';
 import { BUBBLE_ICON, TRANSCRIPT_KEY } from './constants.js';
 
-export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock }) {
+export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock, onPlantimeSave, onPlantimeOff }) {
     const root = byId('aw-chat-root');
     if (!root) return false;
 
@@ -14,6 +14,12 @@ export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock }) {
                 <span class="aw-chat-title">AI Wrapped<span class="green-dot">.</span></span>
                 <button class="aw-chat-clear" title="Clear conversation"><i class="fas fa-trash-can"></i></button>
                 <button class="aw-chat-close" title="Close">&times;</button>
+            </div>
+            <div id="aw-plantime" class="aw-hidden">
+                <label for="aw-plantime-input">Nightly planner</label>
+                <input id="aw-plantime-input" type="time" />
+                <button type="button" id="aw-plantime-save" title="Save time">Save</button>
+                <button type="button" id="aw-plantime-off" title="Turn off">Off</button>
             </div>
             <div id="aw-unlock" class="aw-hidden">
                 <p class="aw-unlock-copy">Enter the owner password to use the DJ and push playlists.</p>
@@ -27,7 +33,7 @@ export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock }) {
             <div id="aw-chat-messages"></div>
             <form id="aw-chat-form">
                 <input id="aw-chat-input" autocomplete="off"
-                       placeholder="Ask for a playlist or about your listening" />
+                       placeholder="Ask for a playlist, or /plantime 21:00" />
                 <button type="button" id="aw-stop" class="aw-hidden" title="Stop the DJ">
                     <i class="fas fa-stop"></i></button>
                 <button type="submit" id="aw-send"><i class="fas fa-paper-plane"></i></button>
@@ -40,6 +46,8 @@ export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock }) {
     byId('aw-chat-form').addEventListener('submit', onSend);
     byId('aw-stop').addEventListener('click', onStop);
     byId('aw-unlock-form').addEventListener('submit', onUnlock);
+    byId('aw-plantime-save').addEventListener('click', onPlantimeSave);
+    byId('aw-plantime-off').addEventListener('click', onPlantimeOff);
     return true;
 }
 
@@ -49,6 +57,7 @@ export function panelIsOpen() {
 
 export function showUnlockGate(errorMessage) {
     byId('aw-unlock').classList.remove('aw-hidden');
+    byId('aw-plantime').classList.add('aw-hidden');
     byId('aw-chat-messages').classList.add('aw-hidden');
     byId('aw-chat-form').classList.add('aw-hidden');
     const err = byId('aw-unlock-error');
@@ -64,10 +73,27 @@ export function showUnlockGate(errorMessage) {
 
 export function hideUnlockGate() {
     byId('aw-unlock').classList.add('aw-hidden');
+    byId('aw-plantime').classList.remove('aw-hidden');
     byId('aw-chat-messages').classList.remove('aw-hidden');
     byId('aw-chat-form').classList.remove('aw-hidden');
     byId('aw-unlock-error').classList.add('aw-hidden');
     byId('aw-unlock-input').value = '';
+}
+
+export function renderPlantime(schedule) {
+    const input = byId('aw-plantime-input');
+    if (!input) return;
+    input.value = schedule && schedule.enabled && schedule.at ? schedule.at : '';
+}
+
+export function plantimeInputValue() {
+    return byId('aw-plantime-input').value;
+}
+
+export function setPlantimeBusy(busy) {
+    byId('aw-plantime-save').disabled = busy;
+    byId('aw-plantime-off').disabled = busy;
+    byId('aw-plantime-input').disabled = busy;
 }
 
 export function unlockInputValue() {

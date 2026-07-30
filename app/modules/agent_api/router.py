@@ -6,6 +6,7 @@ AppError mapped by the app-wide handler.
 
 from flask import Blueprint, jsonify, request
 
+from app.errors import validation_error
 from app.owner_auth import require_owner
 from app.modules.agent_api.orchestrators import (
     approve_proposal,
@@ -13,6 +14,7 @@ from app.modules.agent_api.orchestrators import (
     get_plan_proposals,
     get_run_status,
     handle_telegram_update,
+    planner_schedule,
     reject_proposal,
     send_chat,
     start_planning,
@@ -86,6 +88,21 @@ def plan():
 @require_owner
 def plan_proposals():
     return jsonify(get_plan_proposals.execute())
+
+
+@agents_bp.get("/planner-time")
+@require_owner
+def get_planner_time():
+    return jsonify(planner_schedule.current())
+
+
+@agents_bp.put("/planner-time")
+@require_owner
+def put_planner_time():
+    body = request.get_json(silent=True) or {}
+    if "at" not in body:
+        raise validation_error("Missing at (HH:MM or null/off).")
+    return jsonify(planner_schedule.apply(body.get("at")))
 
 
 @agents_bp.post("/telegram/webhook")
