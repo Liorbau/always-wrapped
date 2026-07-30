@@ -50,8 +50,6 @@ def patched_connection(path):
 
 def test_validate_sql_guard():
     assert validate_sql("SELECT * FROM listening_history") is None
-    assert validate_sql("  select 1;  ") is None
-    assert validate_sql("WITH x AS (SELECT 1) SELECT * FROM x") is None
     for bad in (
         "INSERT INTO listening_history VALUES (1)",
         "UPDATE listening_history SET track_name='x'",
@@ -70,12 +68,12 @@ def test_allowlist_keeps_real_history_queries_working():
         "SELECT * FROM listening_history",
         "SELECT * FROM listening_history h JOIN listening_history g ON h.track_id = g.track_id",
         "WITH recent AS (SELECT * FROM listening_history) SELECT * FROM recent",
-        "WITH a AS (SELECT 1), b AS (SELECT 2) SELECT * FROM a JOIN b ON 1=1",
+        "WITH a AS (SELECT * FROM listening_history LIMIT 1) "
+        "SELECT * FROM a",
         "SELECT EXTRACT(HOUR FROM played_at) FROM listening_history",
         "SELECT substr(album_release_date, 1, 4) FROM listening_history",
         "SELECT * FROM (SELECT track_id FROM listening_history) t",
         "SELECT track_name FROM listening_history WHERE artist_name = 'FROM preference_bias'",
-        "select 1",
     ):
         assert validate_sql(sql) is None, f"guard wrongly rejected: {sql!r}"
 
@@ -97,6 +95,21 @@ def test_allowlist_blocks_every_other_table():
         error = validate_sql(sql)
         assert error is not None, f"guard let through: {sql!r}"
         assert "not available" in error or "Forbidden" in error
+
+
+def test_require_listening_history_blocks_fromless():
+    for sql in (
+        "SELECT 1",
+        "SELECT pg_sleep(30)",
+        "SELECT version()",
+        "SELECT current_setting('is_superuser')",
+        "SELECT pg_read_file('/etc/passwd')",
+        "WITH x AS (SELECT 1) SELECT * FROM x",
+        "WITH a AS (SELECT 1), b AS (SELECT 2) SELECT * FROM a JOIN b ON 1=1",
+    ):
+        error = validate_sql(sql)
+        assert error is not None, f"guard let through: {sql!r}"
+        assert "listening_history" in error.lower()
 
 
 def test_query_returns_rows():
@@ -284,6 +297,7 @@ if __name__ == "__main__":
     test_validate_sql_guard()
     test_allowlist_keeps_real_history_queries_working()
     test_allowlist_blocks_every_other_table()
+    test_require_listening_history_blocks_fromless()
     test_query_returns_rows()
     test_row_cap()
     test_readonly_connection_blocks_writes()

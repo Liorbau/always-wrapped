@@ -55,7 +55,8 @@ _TABLE_REF = re.compile(r"\b(?:from|join)\b\s*([^\s;()]*)", re.IGNORECASE)
 
 SCHEMA_DOC = f"""SQL dialect: {SQL_DIALECT}.
 listening_history is the only readable table — name it unqualified (no schema
-prefix); any other table is rejected. CTEs you define in the query are fine.
+prefix); every query must FROM/JOIN it at least once. Other tables are
+rejected. CTEs you define in the query are fine.
 Table listening_history (one row = one play):
   played_at TEXT primary key — ISO-8601 UTC, e.g. '2026-07-07T08:33:26.231Z' (sortable as text)
   track_id TEXT, track_name TEXT, artist_name TEXT, album_name TEXT
@@ -83,6 +84,18 @@ def _scannable(sql):
     return re.sub(r"\s*,\s*", ",", text)
 
 
+def _table_names(sql):
+    """FROM/JOIN targets after comments and literals are stripped."""
+    text = _scannable(sql)
+    names = []
+    for match in _TABLE_REF.finditer(text):
+        for part in match.group(1).split(","):
+            name = part.strip().strip('"').strip("`").lower()
+            if name:
+                names.append(name)
+    return names
+
+
 def _unapproved_table(sql):
     """The first table the query reads that is outside the allowlist, or None.
 
@@ -91,14 +104,21 @@ def _unapproved_table(sql):
     """
     text = _scannable(sql)
     known = ALLOWED_TABLES | {m.group(1).lower() for m in _CTE_NAME.finditer(text)}
-    for match in _TABLE_REF.finditer(text):
-        for part in match.group(1).split(","):
-            name = part.strip().strip('"').strip("`").lower()
-            # empty = a subquery opens here; its own FROM is scanned separately
-            if not name or name in known or name in HISTORY_COLUMNS or name.isdigit():
-                continue
-            return name
+    for name in _table_names(sql):
+        # subquery opens here; its own FROM is scanned separately
+        if name in known or name in HISTORY_COLUMNS or name.isdigit():
+            continue
+        return name
     return None
+
+
+def _reads_listening_history(sql):
+    """True when listening_history appears as a FROM/JOIN target.
+
+    Blocks FROM-less probes (pg_sleep, version, …) that otherwise skip the
+    allowlist because there are no table names to reject.
+    """
+    return "listening_history" in _table_names(sql)
 
 
 def validate_sql(sql):
@@ -118,6 +138,9 @@ def validate_sql(sql):
         return (f"Table {table!r} is not available. This tool reads only "
                 "listening_history (write the name unqualified) and CTEs you "
                 "define in the same query.")
+    if not _reads_listening_history(stripped):
+        return ("Query must read listening_history at least once "
+                "(FROM-less SELECTs are not allowed).")
     return None
 
 

@@ -110,6 +110,15 @@ def case_sql_allows_history_despite_inject_literal():
     assert validate_sql(sql) is None
 
 
+def case_sql_rejects_fromless_probes():
+    for sql in (
+        "SELECT pg_sleep(30)",
+        "SELECT version()",
+        "SELECT pg_read_file('/etc/passwd')",
+    ):
+        assert validate_sql(sql) is not None, sql
+
+
 def case_malformed_tool_args_fail_closed():
     out = __import__("json").loads(query_history({}))
     assert "error" in out
@@ -215,6 +224,7 @@ CASES = [
     _case("replayed approve → NOT_FOUND", case_replayed_approve_rejected),
     _case("SQL allowlist blocks private tables", case_sql_blocks_other_tables_and_schema),
     _case("SQL allows history with inject literal", case_sql_allows_history_despite_inject_literal),
+    _case("SQL rejects FROM-less probes", case_sql_rejects_fromless_probes),
     _case("malformed query_history args fail closed", case_malformed_tool_args_fail_closed),
     _case("insight HTML-escapes injected names", case_insight_escapes_injected_names),
     _case("rejection reason stored as data", case_rejection_reason_stored_as_data),
@@ -247,8 +257,6 @@ def print_summary(results):
     passed = sum(1 for _, ok, _ in results if ok)
     print("=" * (width + 10))
     print(f"  {passed}/{len(results)} passed")
-    # Document known residual so the summary is honest, not silent.
-    print("  note: SELECT pg_sleep(...) still passes validate_sql — tracked in #49")
     print()
     return passed == len(results)
 

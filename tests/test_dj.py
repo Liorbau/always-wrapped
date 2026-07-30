@@ -129,7 +129,7 @@ def test_pack_accepts_legacy_tracks_key():
 
 def test_request_playlist_packs_a_proposal():
     llm = FakeLLM([
-        tool_call("query_history", {"sql": "SELECT 1"}),
+        tool_call("query_history", {"sql": "SELECT track_id FROM listening_history LIMIT 1"}),
         {"content": json.dumps(POOL)},
     ])
     def go():
