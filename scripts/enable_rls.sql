@@ -4,3 +4,4 @@
 ALTER TABLE public.playlist_timers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.preference_bias ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wrapped_editions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pending_proposal ENABLE ROW LEVEL SECURITY;

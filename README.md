@@ -33,6 +33,8 @@ A real-time Spotify listening history tracker and dashboard. Unlike the annual S
 
 Under the hood it's a multi-agent system — a DJ you can chat with to build playlists, plus headless agents that learn from your listening and plan ahead (web or Telegram).
 
+The live demo is open to browse. Chat, playlist push, and other agent actions need an **owner password** (`OWNER_TOKEN` in env): open the green chat button, enter it once — that browser stays unlocked for about 7 days.
+
 ## Quick setup
 ### 1. Installation
 Clone the repo and install dependencies:
@@ -47,6 +49,7 @@ pip install -r requirements.txt
     SPOTIFY_CLIENT_SECRET=your_secret_here
     SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
     OPENAI_API_KEY=sk-...          # DJ, Wrapped styling, and other agents
+    OWNER_TOKEN=a-long-random-string   # unlocks chat / approve in the browser
     # DATABASE_URL=postgresql://... # optional — omit for local SQLite
     ```
     See `.env.example` for Telegram, calendar, and deploy options.
