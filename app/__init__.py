@@ -18,6 +18,7 @@ def create_app():
     # would re-enter this module at import time.
     from app.modules.agent_api.router import agents_bp
     from app.modules.music.router import music_bp
+    from app.modules.owner.router import owner_bp
     from app.modules.pages.router import pages_bp
     from app.modules.wrapped.router import wrapped_bp
 
@@ -30,6 +31,7 @@ def create_app():
     app.register_blueprint(music_bp)
     app.register_blueprint(wrapped_bp)
     app.register_blueprint(agents_bp)
+    app.register_blueprint(owner_bp)
     register_error_handlers(app)
     return app
 

@@ -6,6 +6,7 @@ AppError mapped by the app-wide handler.
 
 from flask import Blueprint, jsonify, request
 
+from app.owner_auth import require_owner
 from app.modules.agent_api.orchestrators import (
     approve_proposal,
     get_activity,
@@ -29,6 +30,7 @@ def _accepted(payload):
 
 
 @agents_bp.post("/chat")
+@require_owner
 def chat():
     body = request.get_json(silent=True) or {}
     return _accepted(send_chat.execute(
@@ -39,6 +41,7 @@ def chat():
 
 
 @agents_bp.post("/evaluate")
+@require_owner
 def evaluate():
     return _accepted(trigger_evaluator.execute())
 
@@ -54,28 +57,33 @@ def run_status(run_id):
 
 
 @agents_bp.post("/run/<run_id>/stop")
+@require_owner
 def run_stop(run_id):
     return jsonify(stop_run.execute(run_id))
 
 
 @agents_bp.post("/approve")
+@require_owner
 def approve():
     body = request.get_json(silent=True) or {}
     return jsonify(approve_proposal.execute(body.get("proposal_id")))
 
 
 @agents_bp.post("/reject")
+@require_owner
 def reject():
     body = request.get_json(silent=True) or {}
     return jsonify(reject_proposal.execute(body.get("proposal_id"), body.get("reason")))
 
 
 @agents_bp.post("/plan")
+@require_owner
 def plan():
     return jsonify(start_planning.execute()), 202
 
 
 @agents_bp.get("/plan/proposals")
+@require_owner
 def plan_proposals():
     return jsonify(get_plan_proposals.execute())
 

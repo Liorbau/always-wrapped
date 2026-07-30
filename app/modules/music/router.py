@@ -3,6 +3,7 @@
 from flask import Blueprint, jsonify, request
 
 from core.timezone import resolve_tz
+from app.owner_auth import require_owner
 from app.modules.music.orchestrators import (
     get_insight,
     get_records,
@@ -50,5 +51,6 @@ def search():
 
 
 @music_bp.post("/refresh")
+@require_owner
 def refresh():
     return jsonify(refresh_library.execute())

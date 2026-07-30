@@ -13,6 +13,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tests import sandbox  # noqa: F401  — must precede every app import
 
+os.environ.setdefault("OWNER_TOKEN", "test-owner-secret")
+
 from agents import notifications
 from agents.router import route_message
 from integrations.spotify import push_playlist
@@ -23,6 +25,14 @@ from tests.test_harness import FakeLLM
 from tests.test_store import temp_db
 
 import server
+
+
+def unlocked_client():
+    """Browser mutations require the owner cookie; Telegram tests skip this."""
+    client = server.app.test_client()
+    unlocked = client.post("/api/owner/unlock", json={"token": os.environ["OWNER_TOKEN"]})
+    assert unlocked.status_code == 200, unlocked.get_json()
+    return client
 
 
 class RecordingNotifier:
@@ -146,7 +156,7 @@ def _poll(client, run_id, timeout=5.0):
 def test_endpoint_flow_propose_approve_reject():
     from agents.dj import ground_truth, verifier
 
-    client = server.app.test_client()
+    client = unlocked_client()
     pushed = []
     proposal_json = json.dumps({
         "thought": "t", "response": "here you go", "satisfied": True,
@@ -246,7 +256,7 @@ def test_unknown_run_uses_the_error_envelope():
 
 
 def test_evaluator_trigger_endpoint():
-    client = server.app.test_client()
+    client = unlocked_client()
     fake_harness = type("H", (), {"event_hook": None, "trajectory": [],
                                   "metadata": {"cost_usd": 0}})()
     with patched(
@@ -316,7 +326,7 @@ def test_telegram_webhook_secret_and_actions():
 
 def test_plan_trigger_registers_proposals():
     """POST /plan runs the Planner in the background and registers its proposals."""
-    client = server.app.test_client()
+    client = unlocked_client()
     plan_result = {"date": "2026-07-09", "cost_usd": 0.02, "proposals": [
         {"block": {"title": "Morning run", "start": "07:00"},
          "brief": "b", "playlist": {"name": "Run Fuel", "tracks": []}, "response": "r"}]}
