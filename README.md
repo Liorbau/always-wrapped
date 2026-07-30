@@ -33,8 +33,6 @@ A real-time Spotify listening history tracker and dashboard. Unlike the annual S
 
 Under the hood it's a multi-agent system — a DJ you can chat with to build playlists, plus headless agents that learn from your listening and plan ahead (web or Telegram).
 
-The live demo is open to browse. Chat, playlist push, and other agent actions need an **owner password** (`OWNER_TOKEN` in env): open the green chat button, enter it once — that browser stays unlocked for about 7 days.
-
 ## Quick setup
 ### 1. Installation
 Clone the repo and install dependencies:
