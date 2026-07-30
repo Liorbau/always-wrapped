@@ -21,6 +21,10 @@
     <img src="https://img.shields.io/badge/Telegram-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" />
     <img src="https://img.shields.io/badge/Pydantic-E92063?style=for-the-badge&logo=pydantic&logoColor=white" />
 </p>
+
+  <p>
+    <strong>Live demo:</strong> <a href="https://always-wrapped.onrender.com/">https://always-wrapped.onrender.com/</a>
+  </p>
 </div>
 
 <br />
