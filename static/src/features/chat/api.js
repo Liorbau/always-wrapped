@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '../../api/client.js';
+import { apiGet, apiPost, apiPut } from '../../api/client.js';
 
 export async function unlock(token) {
     const { data } = await apiPost('/api/owner/unlock', { token });
@@ -7,6 +7,16 @@ export async function unlock(token) {
 
 export async function unlockStatus() {
     const { data } = await apiGet('/api/owner/status');
+    return data;
+}
+
+export async function fetchPlannerTime() {
+    const { data } = await apiGet('/api/agent/planner-time');
+    return data;
+}
+
+export async function setPlannerTime(at) {
+    const { data } = await apiPut('/api/agent/planner-time', { at });
     return data;
 }
 

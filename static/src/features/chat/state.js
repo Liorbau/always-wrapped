@@ -28,6 +28,8 @@ export function init({ onWrappedRequest } = {}) {
         onClear: clearConversation,
         onToggle: toggle,
         onUnlock: unlock,
+        onPlantimeSave: savePlantime,
+        onPlantimeOff: turnPlantimeOff,
     });
     if (mounted) {
         view.restoreTranscript();
@@ -44,12 +46,24 @@ async function refreshUnlockStatus() {
     }
 }
 
+async function refreshPlantime() {
+    try {
+        view.renderPlantime(await api.fetchPlannerTime());
+    } catch {
+        // unlocked gate already covers auth errors
+    }
+}
+
 async function toggle() {
     view.togglePanel();
     if (!view.panelIsOpen()) return;
     await refreshUnlockStatus();
-    if (chat.unlocked) view.hideUnlockGate();
-    else view.showUnlockGate();
+    if (chat.unlocked) {
+        view.hideUnlockGate();
+        await refreshPlantime();
+    } else {
+        view.showUnlockGate();
+    }
 }
 
 async function unlock(event) {
@@ -64,11 +78,43 @@ async function unlock(event) {
         await api.unlock(token);
         chat.unlocked = true;
         view.hideUnlockGate();
+        await refreshPlantime();
     } catch (error) {
         chat.unlocked = false;
         view.showUnlockGate(error.message || 'Wrong password.');
     } finally {
         view.setUnlockBusy(false);
+    }
+}
+
+async function savePlantime() {
+    const at = view.plantimeInputValue();
+    if (!at) {
+        view.addMessage('system', 'Pick a time first, or tap Off.');
+        return;
+    }
+    view.setPlantimeBusy(true);
+    try {
+        const schedule = await api.setPlannerTime(at);
+        view.renderPlantime(schedule);
+        view.addMessage('system', `Nightly Planner set to ${schedule.at}.`);
+    } catch (error) {
+        showError(error);
+    } finally {
+        view.setPlantimeBusy(false);
+    }
+}
+
+async function turnPlantimeOff() {
+    view.setPlantimeBusy(true);
+    try {
+        const schedule = await api.setPlannerTime(null);
+        view.renderPlantime(schedule);
+        view.addMessage('system', 'Nightly Planner turned off.');
+    } catch (error) {
+        showError(error);
+    } finally {
+        view.setPlantimeBusy(false);
     }
 }
 
@@ -137,6 +183,12 @@ async function dispatch(reply, status) {
     if (reply.type === 'refusal') {
         status.remove();
         view.addMessage('agent', esc(reply.response));
+        return;
+    }
+    if (reply.type === 'plantime') {
+        status.remove();
+        view.addMessage('system', esc(reply.response));
+        view.renderPlantime(reply);
         return;
     }
 

@@ -38,6 +38,21 @@
 .aw-chat-close { color: #a7a7a7; font-size: 1.1rem; line-height: 1; }
 .aw-chat-close:hover { color: #fff; background: rgba(255,255,255,0.06); }
 
+/* nightly planner schedule */
+#aw-plantime { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    color: #a7a7a7; font-size: 0.8rem; }
+#aw-plantime label { margin-right: 2px; }
+#aw-plantime-input { background: #1e1e1e; border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px; color: #fff; padding: 6px 8px; font: inherit; color-scheme: dark; }
+#aw-plantime-save, #aw-plantime-off { border: none; border-radius: 8px; padding: 6px 10px;
+    font: inherit; font-weight: 700; font-size: 0.75rem; cursor: pointer; }
+#aw-plantime-save { background: #1ed760; color: #000; }
+#aw-plantime-off { background: rgba(255,255,255,0.08); color: #a7a7a7; }
+#aw-plantime-save:hover { background: #1fdf64; }
+#aw-plantime-off:hover { color: #fff; background: rgba(255,255,255,0.12); }
+#aw-plantime button:disabled { opacity: 0.55; cursor: default; }
+
 /* owner unlock gate */
 #aw-unlock { flex: 1; display: flex; flex-direction: column; justify-content: center;
     gap: 14px; padding: 28px 22px; }
