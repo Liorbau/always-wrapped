@@ -47,6 +47,7 @@ pip install -r requirements.txt
     SPOTIFY_CLIENT_SECRET=your_secret_here
     SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback
     OPENAI_API_KEY=sk-...          # DJ, Wrapped styling, and other agents
+    OWNER_TOKEN=a-long-random-string   # unlocks chat / approve in the browser
     # DATABASE_URL=postgresql://... # optional — omit for local SQLite
     ```
     See `.env.example` for Telegram, calendar, and deploy options.
