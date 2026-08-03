@@ -7,7 +7,9 @@ survives.
 Runnable directly:  ./venv/bin/python tests/test_store.py
 """
 
+import json
 import os
+import shutil
 import sqlite3
 import sys
 import tempfile
@@ -17,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tests import sandbox  # noqa: F401  — must precede every app import
 
 from agents import ledger
-from agents.store import hitl, run_costs
+from agents.store import hitl, playlists, run_costs
 
 
 def _sqlite_at(path):
@@ -29,7 +31,7 @@ def _sqlite_at(path):
 class temp_db:
     """Point every store module at one throwaway SQLite file."""
 
-    def __init__(self, modules=(run_costs, hitl)):
+    def __init__(self, modules=(run_costs, hitl, playlists)):
         self.modules = modules
 
     def __enter__(self):
@@ -151,6 +153,74 @@ def test_hitl_survives_a_missing_database_without_raising():
         hitl.get_db_connection = original
 
 
+def test_pushed_playlists_and_feedback_roundtrip():
+    with temp_db():
+        assert playlists.ensure_tables()
+        ok = playlists.upsert_pushed(
+            "pl-1",
+            {
+                "name": "Run Fuel",
+                "description": "tempo",
+                "tracks": [{"track_id": "t1", "track_name": "A"}],
+                "familiarity_constraint": "mixed",
+                "target_duration_min": 45,
+            },
+            url="https://open.spotify.com/playlist/abc123XYZ",
+            pushed_at="2026-07-20T09:00:00",
+        )
+        assert ok
+        [row] = playlists.list_pushed()
+        assert row["id"] == "pl-1"
+        assert row["spotify_playlist_id"] == "abc123XYZ"
+        assert row["tracks"][0]["track_id"] == "t1"
+        assert row["context"]["target_duration_min"] == 45
+
+        assert playlists.upsert_feedback("pl-1", "vibe_fit", 4, note="solid")
+        assert playlists.upsert_feedback("pl-1", "nope", 3) is False
+        first = playlists.feedback_for("pl-1")[0]
+        assert playlists.upsert_feedback("pl-1", "vibe_fit", 5)
+        [fb] = playlists.feedback_for("pl-1")
+        assert fb["criterion"] == "vibe_fit" and fb["score"] == 5.0
+        assert fb["note"] == "solid"
+        assert fb["rated_at"] == first["rated_at"]
+
+
+def test_pushed_playlists_backfill_from_hitl_is_idempotent():
+    with temp_db():
+        hitl.record_push(
+            {"name": "Once", "tracks": [{"track_id": "t1"}]},
+            "https://open.spotify.com/playlist/zz9",
+            ts="2026-07-01T09:00:00",
+            record_id="stable-hitl",
+        )
+        assert playlists.import_from_hitl() == 1
+        assert playlists.import_from_hitl() == 1  # upsert, not duplicate
+        rows = playlists.list_pushed()
+        assert len(rows) == 1
+        assert rows[0]["id"] == "stable-hitl"
+        assert rows[0]["spotify_playlist_id"] == "zz9"
+
+
+def test_pushed_playlists_backfill_from_jsonl():
+    with temp_db():
+        folder = tempfile.mkdtemp()
+        try:
+            path = os.path.join(folder, "pushes.jsonl")
+            with open(path, "w") as handle:
+                handle.write(json.dumps({
+                    "ts": "2026-06-01T12:00:00",
+                    "url": "https://open.spotify.com/playlist/jsonl1",
+                    "playlist": {"name": "Legacy", "tracks": [{"track_id": "t9"}]},
+                }) + "\n")
+            assert playlists.import_from_jsonl(folder) == 1
+            assert playlists.import_from_jsonl(folder) == 1
+            [row] = playlists.list_pushed()
+            assert row["name"] == "Legacy"
+            assert row["spotify_playlist_id"] == "jsonl1"
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+
+
 if __name__ == "__main__":
     test_run_costs_sum_per_day()
     test_spend_windows_week_and_month()
@@ -162,4 +232,7 @@ if __name__ == "__main__":
     test_pushes_since_filters_by_date()
     test_backfill_is_idempotent()
     test_hitl_survives_a_missing_database_without_raising()
+    test_pushed_playlists_and_feedback_roundtrip()
+    test_pushed_playlists_backfill_from_hitl_is_idempotent()
+    test_pushed_playlists_backfill_from_jsonl()
     print("OK: all store tests passed")
