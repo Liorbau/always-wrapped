@@ -30,9 +30,9 @@ def _as_date(day):
 
 
 def week_bounds(day=None):
-    """Inclusive YYYYMMDD (Mon → `day`) for the ISO week containing `day`."""
+    """Inclusive YYYYMMDD (Sun → `day`) — same Sunday week as Wrapped."""
     end = _as_date(_day_key(day))
-    start = end - timedelta(days=end.weekday())
+    start = end - timedelta(days=(end.weekday() + 1) % 7)
     return start.strftime("%Y%m%d"), end.strftime("%Y%m%d")
 
 
@@ -51,7 +51,7 @@ def daily_spent(day=None):
 def spend_windows(day=None):
     """Today / week / month totals, or None per field when the ledger is unread.
 
-    Week is Monday→today (ISO). Month is the 1st→today. Same clock as `spent_on`.
+    Week is Sunday→today. Month is the 1st→today. Same clock as `spent_on`.
     """
     day = _day_key(day)
     week_start, week_end = week_bounds(day)
@@ -75,7 +75,7 @@ def format_spend_reply(windows=None):
     return (
         f"LLM spend — today ${today:.2f} "
         f"(budget ${budget:.0f}/day) · this week ${week:.2f} "
-        f"(Mon–today) · this month ${month:.2f}."
+        f"(Sun–today) · this month ${month:.2f}."
     )
 
 

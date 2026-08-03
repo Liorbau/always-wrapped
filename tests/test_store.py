@@ -58,17 +58,20 @@ def test_run_costs_sum_per_day():
 
 def test_spend_windows_week_and_month():
     with temp_db():
-        # Wednesday 2026-07-29 — week Mon 27–Wed 29; month July 1–29
+        # Wednesday 2026-07-29 — week Sun 26–Wed 29; month July 1–29
+        assert ledger.week_bounds("20260729") == ("20260726", "20260729")
+        run_costs.record("sun", 0.50, day="20260726")
         run_costs.record("a", 1.00, day="20260727")
         run_costs.record("b", 2.00, day="20260729")
         run_costs.record("c", 4.00, day="20260701")
         run_costs.record("d", 8.00, day="20260630")  # prior month / week
         windows = ledger.spend_windows("20260729")
         assert abs(windows["today"] - 2.00) < 1e-9
-        assert abs(windows["week"] - 3.00) < 1e-9
-        assert abs(windows["month"] - 7.00) < 1e-9
+        assert abs(windows["week"] - 3.50) < 1e-9
+        assert abs(windows["month"] - 7.50) < 1e-9
         text = ledger.format_spend_reply(windows)
-        assert "$2.00" in text and "$3.00" in text and "$7.00" in text
+        assert "Sun–today" in text
+        assert "$2.00" in text and "$3.50" in text and "$7.50" in text
 
 
 def test_repeated_saves_of_one_run_do_not_double_count():
