@@ -60,11 +60,21 @@ export function renderActive(active) {
     runCost.classList.add('hot');
 }
 
-export function renderCosts({ daily_cost: spent, daily_budget: budget }) {
-    // spent is null when the ledger is unreadable; showing $0.00 would imply
-    // the opposite of what is actually known
-    byId('ag-day-cost').textContent = spent == null ? '—' : `$${spent.toFixed(2)}`;
+export function renderCosts({
+    daily_cost: spent,
+    week_cost: week,
+    month_cost: month,
+    daily_budget: budget,
+}) {
+    // null when the ledger is unreadable — never imply $0.00
+    byId('ag-day-cost').textContent = money(spent);
+    byId('ag-week-cost').textContent = money(week);
+    byId('ag-month-cost').textContent = money(month);
     byId('ag-budget').textContent = `$${budget.toFixed(0)}`;
+}
+
+function money(value) {
+    return value == null ? '—' : `$${value.toFixed(2)}`;
 }
 
 export function renderFeed(events) {

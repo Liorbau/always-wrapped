@@ -56,6 +56,21 @@ def test_run_costs_sum_per_day():
         assert run_costs.spent_on("20991231") == 0.0
 
 
+def test_spend_windows_week_and_month():
+    with temp_db():
+        # Wednesday 2026-07-29 — week Mon 27–Wed 29; month July 1–29
+        run_costs.record("a", 1.00, day="20260727")
+        run_costs.record("b", 2.00, day="20260729")
+        run_costs.record("c", 4.00, day="20260701")
+        run_costs.record("d", 8.00, day="20260630")  # prior month / week
+        windows = ledger.spend_windows("20260729")
+        assert abs(windows["today"] - 2.00) < 1e-9
+        assert abs(windows["week"] - 3.00) < 1e-9
+        assert abs(windows["month"] - 7.00) < 1e-9
+        text = ledger.format_spend_reply(windows)
+        assert "$2.00" in text and "$3.00" in text and "$7.00" in text
+
+
 def test_repeated_saves_of_one_run_do_not_double_count():
     """The harness saves its log several times per run — cost must not accumulate."""
     with temp_db():
@@ -135,6 +150,7 @@ def test_hitl_survives_a_missing_database_without_raising():
 
 if __name__ == "__main__":
     test_run_costs_sum_per_day()
+    test_spend_windows_week_and_month()
     test_repeated_saves_of_one_run_do_not_double_count()
     test_budget_left_reflects_recorded_spend()
     test_budget_fails_closed_when_the_ledger_is_unreadable()

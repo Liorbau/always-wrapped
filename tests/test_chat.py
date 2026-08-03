@@ -243,8 +243,30 @@ def test_observatory_endpoints():
     client = server.app.test_client()
     assert client.get("/agents").status_code == 200
     r = client.get("/api/agent/activity").get_json()
-    assert set(r) == {"active", "events", "daily_cost", "daily_budget"}
+    assert set(r) == {
+        "active", "events", "daily_cost", "week_cost", "month_cost", "daily_budget",
+    }
     assert r["active"] is None or "agent" in r["active"]
+
+
+def test_spend_chat_command_and_route():
+    client = unlocked_client()
+    with temp_db(), patched(
+        (send_chat, "route_message", lambda m, context=None: "spend_inquiry"),
+        (send_chat, "budget_left", lambda: -0.01),
+    ):
+        from agents.store import run_costs
+        run_costs.record("r1", 1.25)
+        cmd = client.post("/api/agent/chat", json={"message": "/spend"})
+        assert cmd.status_code == 200
+        body = cmd.get_json()
+        assert body["type"] == "spend"
+        assert "LLM spend" in body["response"]
+        assert body["today"] == 1.25
+
+        # Natural-language spend inquiry still answers when agents are over budget
+        nl = client.post("/api/agent/chat", json={"message": "how much did the AI cost?"})
+        assert nl.status_code == 200 and nl.get_json()["type"] == "spend"
 
 
 def test_unknown_run_uses_the_error_envelope():
@@ -386,6 +408,7 @@ if __name__ == "__main__":
     test_push_playlist_description_respects_spotify_limit()
     test_endpoint_flow_propose_approve_reject()
     test_observatory_endpoints()
+    test_spend_chat_command_and_route()
     test_unknown_run_uses_the_error_envelope()
     test_evaluator_trigger_endpoint()
     test_telegram_webhook_secret_and_actions()
