@@ -18,7 +18,7 @@ os.environ.setdefault("OWNER_TOKEN", "test-owner-secret")
 from agents import notifications
 from agents.router import route_message
 from integrations.spotify import push_playlist
-from agents.store import hitl
+from agents.store import hitl, playlists
 from app.modules.agent_api import planning, proposals, runner, runs, sessions
 from app.modules.agent_api.orchestrators import send_chat, trigger_evaluator
 from tests.test_harness import FakeLLM
@@ -206,9 +206,12 @@ def test_endpoint_flow_propose_approve_reject():
             _poll(client, r3.get_json()["run_id"])
             assert sessions.SESSIONS["s1"]["dj"] is not dj_first
 
-            # approve -> exactly one push, proposal consumed
+            # approve -> exactly one push, proposal consumed, shelf + HITL share id
             r = client.post("/api/agent/approve", json={"proposal_id": pid}).get_json()
             assert r["type"] == "pushed" and len(pushed) == 1
+            [shelf] = playlists.list_pushed()
+            assert shelf["id"] == pid and shelf["spotify_playlist_id"] == "pl1"
+            assert shelf["name"] == "Mix"
             repeat = client.post("/api/agent/approve", json={"proposal_id": pid})
             assert repeat.status_code == 404
             assert repeat.get_json()["error"]["code"] == "NOT_FOUND"
@@ -348,11 +351,13 @@ def test_telegram_webhook_secret_and_actions():
                             headers={"X-Telegram-Bot-Api-Secret-Token": "s3cr3t"})
             assert r.status_code == 200 and not pushed and "p1" in proposals.PENDING
 
-            # right secret + approve -> pushed once, proposal consumed
+            # right secret + approve -> pushed once, proposal consumed, shelf keyed
             r = client.post("/api/agent/telegram/webhook", json=cb("p1", "approve"),
                             headers={"X-Telegram-Bot-Api-Secret-Token": "s3cr3t"})
             assert r.status_code == 200 and len(pushed) == 1
             assert "p1" not in proposals.PENDING
+            [shelf] = playlists.list_pushed()
+            assert shelf["id"] == "p1" and shelf["name"] == "A"
 
             # right secret + reject -> discarded + logged, no extra push
             proposals.PENDING["p2"] = {"name": "B", "tracks": []}

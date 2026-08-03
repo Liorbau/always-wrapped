@@ -8,8 +8,8 @@ Spotify-failure so a retry is explicit and safe.
 """
 
 from agents.store import pending_proposals as store
+from agents.store import hitl, playlists
 from integrations.spotify import push_playlist
-from agents.store import hitl
 from app.errors import not_found, upstream_error
 from app.modules.agent_api import events
 from core.logging import configure_logger
@@ -36,7 +36,16 @@ def push(proposal_id):
         store.restore_pending(proposal_id)
         raise upstream_error(result["error"])
 
-    hitl.record_push(playlist, result.get("url"))
+    # Stable id = proposal_id so HITL history and the rating shelf share a key.
+    url = result.get("url")
+    hitl.record_push(playlist, url, record_id=proposal_id)
+    if not playlists.upsert_pushed(
+        proposal_id,
+        playlist,
+        url=url,
+        spotify_playlist_id=result.get("playlist_id"),
+    ):
+        logger.error("pushed_playlists shelf miss after approve %s", proposal_id)
     events.record("spotify", f"playlist pushed: {playlist.get('name', '?')}")
     logger.info("Proposal %s approved and pushed.", proposal_id)
     return result
