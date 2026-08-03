@@ -29,14 +29,27 @@
 .aw-chat-title { font-weight: 800; letter-spacing: 0.5px; color: #fff;
     margin-right: auto; font-size: 1.1rem; display: flex; align-items: center;
     gap: 8px; }
-.aw-chat-clear, .aw-chat-close { width: 32px; height: 32px; border-radius: 8px;
+.aw-chat-help, .aw-chat-clear, .aw-chat-close { width: 32px; height: 32px; border-radius: 8px;
     background: none; border: none; cursor: pointer; display: flex;
     align-items: center; justify-content: center; transition: background 0.15s,
     color 0.15s; }
+.aw-chat-help { color: #a7a7a7; font-size: 0.95rem; font-weight: 800; }
+.aw-chat-help:hover { color: #1ed760; background: rgba(255,255,255,0.06); }
 .aw-chat-clear { color: #6f6f6f; font-size: 0.8rem; }
 .aw-chat-clear:hover { color: #ff6b5e; background: rgba(255,255,255,0.06); }
 .aw-chat-close { color: #a7a7a7; font-size: 1.1rem; line-height: 1; }
 .aw-chat-close:hover { color: #fff; background: rgba(255,255,255,0.06); }
+
+#aw-commands { padding: 10px 14px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: #161616; max-height: 40%; overflow-y: auto; }
+.aw-commands-head { color: #fff; font-weight: 700; font-size: 0.8rem;
+    letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 8px; }
+.aw-commands-list { display: flex; flex-direction: column; gap: 8px; }
+.aw-cmd { display: flex; flex-direction: column; gap: 2px; }
+.aw-cmd code { color: #1ed760; font-size: 0.82rem; font-family: ui-monospace, monospace; }
+.aw-cmd span { color: #a7a7a7; font-size: 0.8rem; line-height: 1.35; }
+.aw-commands-note { color: #6f6f6f; font-size: 0.75rem; margin: 10px 0 0; line-height: 1.4; }
+.aw-commands-note code { color: #a7a7a7; }
 
 /* nightly planner schedule */
 #aw-plantime { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;

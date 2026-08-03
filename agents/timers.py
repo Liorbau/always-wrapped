@@ -10,6 +10,7 @@ import datetime
 import os
 import time
 
+from agents.commands import help_text
 from db import settings
 from db.connection import get_db_connection
 from db.dialects import dialect_for
@@ -22,13 +23,7 @@ DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 GRACE_MIN = 60  # fire up to an hour late (e.g. server restart), never later
 COLS = ("id", "at_hhmm", "days", "prompt", "chat_id", "last_fired")
 
-USAGE = ("Usage: /timer HH:MM <days> <what you want>\n"
-         "e.g. /timer 07:30 sun-thu a 50-minute upbeat playlist for my train\n"
-         "days: daily, a range like sun-thu, or a list like mon,wed,fri\n"
-         "/timers — list active timers\n"
-         "/deltimer <id> — remove one\n"
-         "/plan — build playlists for tomorrow from your calendar\n"
-         "/plantime HH:MM | off — when the nightly Planner runs")
+USAGE = help_text("telegram")
 
 PLANNER_TIME_KEY = "planner_time"
 PLANNER_OFF = "off"

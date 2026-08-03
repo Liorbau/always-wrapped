@@ -7,7 +7,7 @@ from agents.llm import PROVIDERS
 from agents.router import route_message
 from app.errors import budget_exhausted, validation_error
 from app.modules.agent_api import events, planning, runner, runs, sessions, wrap_spec
-from app.modules.agent_api.orchestrators import planner_schedule, spend_report
+from app.modules.agent_api.orchestrators import list_commands, planner_schedule, spend_report
 
 REFUSAL_TEXT = (
     "I'm your music companion — I can build playlists and answer questions "
@@ -30,10 +30,13 @@ def execute(message, session_id=None, provider=None):
     provider = (provider or "").lower() or None
     if provider and provider not in PROVIDERS:
         raise validation_error(f"Unknown provider {provider!r}.", {"provider": provider})
-    if message.lower().startswith("/plantime"):
+    lower = message.lower()
+    if lower in ("/help", "/start"):
+        return list_commands.for_surface("web")
+    if lower.startswith("/plantime"):
         # Exact command — no LLM, same semantics as Telegram /plantime.
         return planner_schedule.from_chat_command(message)
-    if message.lower().startswith("/spend"):
+    if lower.startswith("/spend"):
         # Ledger read — no LLM, works even when the daily agent budget is spent.
         return spend_report.chat_reply()
 

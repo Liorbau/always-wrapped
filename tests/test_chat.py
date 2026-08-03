@@ -249,6 +249,28 @@ def test_observatory_endpoints():
     assert r["active"] is None or "agent" in r["active"]
 
 
+def test_commands_dictionary_and_help():
+    from agents.commands import as_dicts, help_text
+    from agents import timers
+
+    web = {c["cmd"] for c in as_dicts("web")}
+    assert web == {"/help", "/spend", "/plantime"}
+    tg = {c["cmd"] for c in as_dicts("telegram")}
+    assert "/timer" in tg and "/spend" not in tg
+    assert "/plantime" in help_text("web") and "/spend" in help_text("web")
+    assert timers.USAGE == help_text("telegram")
+
+    client = server.app.test_client()
+    r = client.get("/api/agent/commands?surface=web").get_json()
+    assert r["type"] == "commands"
+    assert {c["cmd"] for c in r["commands"]} == web
+
+    unlocked = unlocked_client()
+    help_reply = unlocked.post("/api/agent/chat", json={"message": "/help"}).get_json()
+    assert help_reply["type"] == "commands"
+    assert "/spend" in help_reply["response"]
+
+
 def test_spend_chat_command_and_route():
     client = unlocked_client()
     with temp_db(), patched(
@@ -408,6 +430,7 @@ if __name__ == "__main__":
     test_push_playlist_description_respects_spotify_limit()
     test_endpoint_flow_propose_approve_reject()
     test_observatory_endpoints()
+    test_commands_dictionary_and_help()
     test_spend_chat_command_and_route()
     test_unknown_run_uses_the_error_envelope()
     test_evaluator_trigger_endpoint()

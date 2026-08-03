@@ -14,6 +14,7 @@ from app.modules.agent_api.orchestrators import (
     get_plan_proposals,
     get_run_status,
     handle_telegram_update,
+    list_commands,
     planner_schedule,
     reject_proposal,
     send_chat,
@@ -51,6 +52,13 @@ def evaluate():
 @agents_bp.get("/activity")
 def activity():
     return jsonify(get_activity.execute())
+
+
+@agents_bp.get("/commands")
+def commands():
+    """Public command dictionary for the chat “?” panel (no secrets)."""
+    surface = (request.args.get("surface") or "web").lower()
+    return jsonify(list_commands.for_surface(surface))
 
 
 @agents_bp.get("/run/<run_id>")

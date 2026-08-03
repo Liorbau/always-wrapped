@@ -25,6 +25,11 @@ export async function sendMessage(message, sessionId) {
     return data;
 }
 
+export async function fetchCommands() {
+    const { data } = await apiGet('/api/agent/commands?surface=web');
+    return data;
+}
+
 export async function fetchRun(runId) {
     const { data } = await apiGet(`/api/agent/run/${runId}`);
     return data;
