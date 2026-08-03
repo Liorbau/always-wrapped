@@ -162,12 +162,17 @@ export function renderProposal(proposalId, playlist, { onApprove, onReject }) {
                 <em>— ${esc(track.artist_name)}</em></span>
         </div>`).join('');
 
+    const capNote = (playlist.artist_cap > 2 && playlist.artist_cap_reason)
+        ? `<div class="aw-card-cap">Up to ${esc(playlist.artist_cap)} per artist — ${esc(playlist.artist_cap_reason)}</div>`
+        : '';
+
     const card = addMessage('card', `
         <div class="aw-card-head">
             <strong>${esc(playlist.name)}</strong>
             <span class="aw-duration">${esc(Math.round(playlist.total_duration_min || 0))} min</span>
         </div>
         <div class="aw-card-desc">${esc(playlist.description)}</div>
+        ${capNote}
         <div class="aw-tracks">${tracks}</div>
         <div class="aw-card-actions">
             <button class="aw-approve"><i class="fas fa-check"></i> Approve &amp; push</button>

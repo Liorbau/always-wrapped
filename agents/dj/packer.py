@@ -10,6 +10,7 @@ from agents.dj.constraints import (
     DURATION_TOLERANCE,
     MAX_PER_ARTIST,
     MAX_PLAYED_FRAC,
+    effective_artist_cap,
 )
 
 TRACK_FIELDS = ("track_id", "track_name", "artist_name", "duration_ms",
@@ -86,13 +87,15 @@ def pack(playlist):
     ceiling_ms = target_ms * (1 + DURATION_TOLERANCE)
     floor_ms = target_ms * (1 - DURATION_TOLERANCE)
     mostly_never = playlist.get("familiarity_constraint") == "mostly_never"
+    artist_cap = effective_artist_cap(playlist)
 
     graded = _grade(pool, real)
     if not graded:
         return None, round(target, 1)
     graded.sort(key=lambda c: (not c["_keep"], -c["_fit"]))  # pins first, then fit
 
-    selected, total_ms = _select(graded, target_ms, ceiling_ms, mostly_never)
+    selected, total_ms = _select(
+        graded, target_ms, ceiling_ms, mostly_never, artist_cap)
     if not selected:
         return None, round(target, 1)
 
@@ -104,6 +107,11 @@ def pack(playlist):
         "total_duration_min": round(total_ms / 60000, 1),
         "tracks": [{k: t[k] for k in TRACK_FIELDS} for t in interleave(selected)],
     }
+    if artist_cap != MAX_PER_ARTIST:
+        packed["artist_cap"] = artist_cap
+        reason = (playlist.get("artist_cap_reason") or "").strip()
+        if reason:
+            packed["artist_cap_reason"] = reason
     gap = round((target_ms - total_ms) / 60000, 1) if total_ms < floor_ms else 0
     return packed, gap
 
@@ -132,14 +140,14 @@ def _grade(pool, real):
     return graded
 
 
-def _select(graded, target_ms, ceiling_ms, mostly_never):
+def _select(graded, target_ms, ceiling_ms, mostly_never, artist_cap=MAX_PER_ARTIST):
     selected, per_artist, total_ms, played_n = [], {}, 0, 0
     for candidate in graded:
         if total_ms >= target_ms:
             break
         if total_ms + candidate["duration_ms"] > ceiling_ms:
             continue
-        if per_artist.get(candidate["artist_name"], 0) >= MAX_PER_ARTIST:
+        if per_artist.get(candidate["artist_name"], 0) >= artist_cap:
             continue
         # prefix-invariant: the mix holds at every step, so it holds at the end
         if mostly_never and candidate["_played"] and \

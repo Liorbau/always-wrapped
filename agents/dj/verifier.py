@@ -10,6 +10,7 @@ from agents.dj.constraints import (
     DURATION_TOLERANCE,
     MAX_PER_ARTIST,
     MAX_PLAYED_FRAC,
+    effective_artist_cap,
 )
 
 
@@ -26,6 +27,7 @@ def verify_playlist(playlist):
         return ["verifier could not reach the database"]
 
     violations = _duplicate_violations(tracks)
+    artist_cap = effective_artist_cap(playlist)
     per_artist, total_ms = {}, 0
     for track in tracks:
         info = real.get(track["track_id"])
@@ -39,8 +41,8 @@ def verify_playlist(playlist):
         per_artist[info["artist"]] = per_artist.get(info["artist"], 0) + 1
 
     for artist, count in per_artist.items():
-        if count > MAX_PER_ARTIST:
-            violations.append(f"{count} tracks by {artist} (max {MAX_PER_ARTIST} per artist)")
+        if count > artist_cap:
+            violations.append(f"{count} tracks by {artist} (max {artist_cap} per artist)")
 
     violations += _familiarity_violations(playlist, tracks, real)
     violations += _duration_violations(playlist, total_ms)
@@ -106,7 +108,8 @@ def sanitize(playlist):
     real = ground_truth.reality(tracks) or {}
     mostly_never = (playlist or {}).get("familiarity_constraint") == "mostly_never"
 
-    kept = _drop_invalid(tracks, real)
+    artist_cap = effective_artist_cap(playlist)
+    kept = _drop_invalid(tracks, real, artist_cap)
     if mostly_never:
         kept = _trim_played(kept, real)
     if not kept:
@@ -115,6 +118,13 @@ def sanitize(playlist):
     total_ms = sum((real.get(t.get("track_id")) or {}).get("duration_ms") or 0 for t in kept)
     total_min = total_ms / 60000
     repaired = dict(playlist, tracks=kept, total_duration_min=round(total_min, 1))
+    repaired.pop("artist_cap", None)
+    repaired.pop("artist_cap_reason", None)
+    if artist_cap != MAX_PER_ARTIST:
+        repaired["artist_cap"] = artist_cap
+        reason = (playlist.get("artist_cap_reason") or "").strip()
+        if reason:
+            repaired["artist_cap_reason"] = reason
 
     target = repaired.get("target_duration_min") or DEFAULT_DURATION_MIN
     note = None
@@ -125,7 +135,7 @@ def sanitize(playlist):
     return repaired, note
 
 
-def _drop_invalid(tracks, real):
+def _drop_invalid(tracks, real, artist_cap=MAX_PER_ARTIST):
     """Hallucinated ids, duplicates, and per-artist overflow."""
     kept, per_artist, kept_ids = [], {}, set()
     for track in tracks:
@@ -133,7 +143,7 @@ def _drop_invalid(tracks, real):
         info = real.get(track_id)
         if info is None or track_id in kept_ids:
             continue
-        if per_artist.get(info["artist"], 0) >= MAX_PER_ARTIST:
+        if per_artist.get(info["artist"], 0) >= artist_cap:
             continue
         kept_ids.add(track_id)
         per_artist[info["artist"]] = per_artist.get(info["artist"], 0) + 1

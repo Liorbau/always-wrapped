@@ -55,12 +55,16 @@ WORKFLOW — a constraint-satisfaction loop:
    query_history); free-text track search is the last resort.
 4. OUTPUT A CANDIDATE POOL, NOT A FINAL LIST. Deterministic code (the packer)
    assembles the playlist from your pool — it enforces the duration window
-   (±{TOLERANCE_PCT}% of target), the max-{MAX_PER_ARTIST}-per-artist cap, and the familiarity mix.
+   (±{TOLERANCE_PCT}% of target), the per-artist cap, and the familiarity mix.
    Duration arithmetic is NOT your job; curation is. Pool rules:
    - give every candidate a "fit" score 0-1: how well THIS track matches the
      mood/context/request (the packer picks high-fit first)
-   - supply the packer room: pool total duration ~1.3x the target, spread
-     across MANY artists (only {MAX_PER_ARTIST} per artist can be used)
+   - DEFAULT: prefer diversity — at most {MAX_PER_ARTIST} tracks per artist.
+     Supply ~1.3x target duration across MANY artists unless concentrating.
+   - OVERRIDE: if the user asks for a deep dive / single-artist set / "only X",
+     or you have a clear stated reason (tribute, short set where diversity is
+     impossible), set "artist_cap" above {MAX_PER_ARTIST} AND a short
+     "artist_cap_reason". Raising the cap without a reason is ignored.
    - for "mostly_never" requests fill the pool with never-played candidates —
      played ones beyond ~40% of the final list cannot be used; NEVER pad with
      familiar tracks to reach length
@@ -88,6 +92,8 @@ FINAL RESPONSE FORMAT — reply with valid JSON only:
     "description": "one-line description",
     "target_duration_min": 60,
     "familiarity_constraint": "mostly_never" | "mostly_familiar" | "mixed",
+    "artist_cap": {MAX_PER_ARTIST},
+    "artist_cap_reason": "omit unless raising artist_cap; then explain briefly",
     "candidates": [
       {{"track_id": "...", "track_name": "...", "artist_name": "...",
         "familiarity": "familiar", "fit": 0.85, "keep": false,
