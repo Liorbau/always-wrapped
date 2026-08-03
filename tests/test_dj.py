@@ -15,6 +15,7 @@ from tests import sandbox  # noqa: F401  — must precede every app import
 
 from agents.dj import DJ_SYSTEM_PROMPT, request_playlist, verify_playlist
 from agents.dj import candidates, ground_truth, packer, verifier
+from agents.dj.constraints import effective_artist_cap
 from tests.test_harness import FakeLLM, tool_call
 
 # a valid pool: 12 tracks x 4min = 48min against a 45min target (window 33.8-56.2)
@@ -58,6 +59,7 @@ def test_prompt_contains_critical_contracts():
         "keep:true",                  # follow-up pins
         "±25%",
         "candidates",
+        "artist_cap_reason",          # soft diversity override
     ):
         assert needle in DJ_SYSTEM_PROMPT, f"prompt lost: {needle!r}"
 
@@ -77,6 +79,54 @@ def test_pack_enforces_artist_cap():
         pool_reality(artist="Same"), lambda: packer.pack(POOL["playlist"]))
     assert len(packed["tracks"]) == 2            # only 2 per artist usable
     assert gap > 0                               # which leaves a supply gap
+    assert "artist_cap" not in packed
+
+
+def test_pack_raises_artist_cap_with_reason():
+    pl = dict(POOL["playlist"], artist_cap=10,
+              artist_cap_reason="Radiohead deep dive as requested")
+    packed, gap = with_reality(
+        pool_reality(artist="Same"), lambda: packer.pack(pl))
+    assert len(packed["tracks"]) > 2
+    assert gap == 0
+    assert packed["artist_cap"] == 10
+    assert "deep dive" in packed["artist_cap_reason"]
+
+
+def test_pack_ignores_artist_cap_raise_without_reason():
+    pl = dict(POOL["playlist"], artist_cap=10)
+    packed, gap = with_reality(
+        pool_reality(artist="Same"), lambda: packer.pack(pl))
+    assert len(packed["tracks"]) == 2
+    assert "artist_cap" not in packed
+    assert effective_artist_cap(pl) == 2
+
+
+def test_verifier_respects_artist_cap_override():
+    tracks = [
+        {"track_id": f"t{i}", "track_name": f"Song {i}", "artist_name": "Same"}
+        for i in range(5)
+    ]
+    reality = {f"t{i}": {"artist": "Same", "duration_ms": 180000, "plays": 3}
+               for i in range(5)}
+    bare = {"target_duration_min": 20, "tracks": tracks}
+    overridden = dict(bare, artist_cap=5,
+                      artist_cap_reason="single-artist set")
+
+    def go():
+        return (
+            verify_playlist(bare),
+            verify_playlist(overridden),
+            verifier.sanitize(bare)[0],
+            verifier.sanitize(overridden)[0],
+        )
+
+    bare_v, over_v, bare_s, over_s = with_reality(reality, go)
+    assert any("max 2" in v for v in bare_v)
+    assert over_v == [] or not any("per artist" in v for v in over_v)
+    assert len(bare_s["tracks"]) == 2
+    assert len(over_s["tracks"]) == 5
+    assert over_s["artist_cap"] == 5
 
 
 def test_pack_enforces_never_mix_and_corrects_labels():
@@ -301,6 +351,9 @@ if __name__ == "__main__":
     test_prompt_contains_critical_contracts()
     test_pack_hits_duration_window()
     test_pack_enforces_artist_cap()
+    test_pack_raises_artist_cap_with_reason()
+    test_pack_ignores_artist_cap_raise_without_reason()
+    test_verifier_respects_artist_cap_override()
     test_pack_enforces_never_mix_and_corrects_labels()
     test_pack_honors_pins_first()
     test_pack_drops_ghosts_dupes_and_reports_shortfall()

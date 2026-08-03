@@ -19,6 +19,7 @@ from agents.dj.constraints import (
     MAX_PER_ARTIST,
     MAX_PLAYED_FRAC,
     MAX_STEPS,
+    effective_artist_cap,
 )
 from agents.dj.prompt import DJ_SYSTEM_PROMPT
 from agents.dj.turn import build_dj, request_playlist, run_dj_turn
@@ -31,6 +32,7 @@ __all__ = [
     "MAX_PER_ARTIST",
     "MAX_PLAYED_FRAC",
     "MAX_STEPS",
+    "effective_artist_cap",
     "build_dj",
     "request_playlist",
     "run_dj_turn",

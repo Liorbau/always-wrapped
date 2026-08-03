@@ -5,7 +5,7 @@ arithmetic stay in the packer.
 """
 
 from agents.dj import candidates, language
-from agents.dj.constraints import DEFAULT_DURATION_MIN
+from agents.dj.constraints import DEFAULT_DURATION_MIN, effective_artist_cap
 from core.logging import configure_logger
 
 logger = configure_logger(__name__)
@@ -53,13 +53,14 @@ def reserve_topup(playlist, packed):
 def supply_message(playlist, packed, gap_min, dj=None):
     target = (playlist or {}).get("target_duration_min") or DEFAULT_DURATION_MIN
     got = (packed or {}).get("total_duration_min", 0)
+    cap = effective_artist_cap(playlist)
     lines = [
         f"SUPPLY CHECK: your valid candidates fill only {got} min of the ~{target:.0f} min "
         f"target (about {gap_min:.0f} min short after enforcing the artist cap and mix).",
         "Reply in the same JSON format but put ONLY the NEW candidates in \"candidates\" — "
         "code merges them with your existing pool, so do not repeat earlier ones. "
         f"Add at least {max(MIN_NEW_TRACKS, int(gap_min / MINUTES_PER_TRACK))} new tracks "
-        "from MANY different artists (max 2 usable per artist).",
+        f"(max {cap} usable per artist for this request).",
     ]
 
     if (playlist or {}).get("familiarity_constraint") == "mostly_never":

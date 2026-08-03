@@ -101,6 +101,8 @@
     text-transform: uppercase; }
 .aw-card-desc { color: #a7a7a7; font-size: 0.94rem; line-height: 1.45;
     margin-bottom: 10px; }
+.aw-card-cap { color: #c9a227; font-size: 0.82rem; line-height: 1.4;
+    margin: -4px 0 10px; }
 .aw-tracks { display: flex; flex-direction: column; gap: 6px;
     margin-bottom: 12px; max-height: 180px; overflow-y: auto; }
 .aw-tracks::-webkit-scrollbar { width: 6px; }
