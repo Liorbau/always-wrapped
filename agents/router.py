@@ -13,7 +13,10 @@ from core.logging import configure_logger
 
 logger = configure_logger(__name__)
 
-ROUTES = ("playlist_request", "data_question", "wrapped_request", "plan_day", "off_topic")
+ROUTES = (
+    "playlist_request", "data_question", "wrapped_request", "plan_day",
+    "spend_inquiry", "off_topic",
+)
 
 ROUTER_PROMPT = """You route messages for a Spotify listening-history companion app.
 Classify the user's message into exactly one route:
@@ -27,6 +30,10 @@ Classify the user's message into exactly one route:
   CALENDAR ("plan my day", "plan tomorrow", "make playlists for my day",
   "soundtrack my schedule"). Distinct from playlist_request, which is a single
   ad-hoc playlist with no calendar involved.
+- "spend_inquiry": they ask about LLM / agent API cost or the daily budget —
+  how much the DJ/agents have spent today, this week, or this month
+  ("how much have I spent on the AI", "LLM cost this week", "agent budget",
+  "/spend"). NOT listening-history stats and NOT Spotify subscription price.
 - "off_topic": anything else (recipes, code, general knowledge, chit-chat
   unrelated to music)
 

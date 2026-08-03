@@ -7,7 +7,7 @@ from agents.llm import PROVIDERS
 from agents.router import route_message
 from app.errors import budget_exhausted, validation_error
 from app.modules.agent_api import events, planning, runner, runs, sessions, wrap_spec
-from app.modules.agent_api.orchestrators import planner_schedule
+from app.modules.agent_api.orchestrators import planner_schedule, spend_report
 
 REFUSAL_TEXT = (
     "I'm your music companion — I can build playlists and answer questions "
@@ -33,9 +33,9 @@ def execute(message, session_id=None, provider=None):
     if message.lower().startswith("/plantime"):
         # Exact command — no LLM, same semantics as Telegram /plantime.
         return planner_schedule.from_chat_command(message)
-
-    if budget_left() <= 0:
-        raise budget_exhausted(CHAT_OVER_BUDGET)
+    if message.lower().startswith("/spend"):
+        # Ledger read — no LLM, works even when the daily agent budget is spent.
+        return spend_report.chat_reply()
 
     with runs.lock:
         runs.claim_slot()
@@ -47,6 +47,12 @@ def execute(message, session_id=None, provider=None):
         if route == "off_topic":
             return {"type": "refusal", "response": REFUSAL_TEXT}
         session["last_exchange"] = (message[:200], route)
+
+        if route == "spend_inquiry":
+            return spend_report.chat_reply()
+
+        if budget_left() <= 0:
+            raise budget_exhausted(CHAT_OVER_BUDGET)
 
         if route == "wrapped_request":
             return _wrapped_redirect(message)

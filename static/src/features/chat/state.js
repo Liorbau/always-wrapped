@@ -191,6 +191,11 @@ async function dispatch(reply, status) {
         view.renderPlantime(reply);
         return;
     }
+    if (reply.type === 'spend') {
+        status.remove();
+        view.addMessage('system', esc(reply.response));
+        return;
+    }
 
     chat.sessionId = reply.session_id;
     localStorage.setItem(SESSION_KEY, chat.sessionId);

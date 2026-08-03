@@ -67,18 +67,28 @@ def spent_on(day=None):
     None is distinct from 0.0 on purpose: the caller must not treat "unknown"
     as "nothing spent".
     """
+    day = day or time.strftime("%Y%m%d")
+    return spent_between(day, day)
+
+
+def spent_between(start_day, end_day):
+    """Total USD for days in [start_day, end_day] inclusive (YYYYMMDD).
+
+    Returns None when the DB is unreachable — never invent a zero.
+    """
     conn, driver = get_db_connection()
     if conn is None:
-        logger.error("Daily spend unavailable: no DB connection.")
+        logger.error("Spend range unavailable: no DB connection.")
         return None
 
     try:
         _ensure_table(conn)
+        p = dialect_for(driver).placeholder
         cursor = conn.cursor()
         cursor.execute(
             f"SELECT COALESCE(SUM(cost_usd), 0) FROM agent_run_cost "
-            f"WHERE day = {dialect_for(driver).placeholder}",
-            (day or time.strftime("%Y%m%d"),),
+            f"WHERE day >= {p} AND day <= {p}",
+            (start_day, end_day),
         )
         row = cursor.fetchone()
         return float(row[0]) if row and row[0] is not None else 0.0
