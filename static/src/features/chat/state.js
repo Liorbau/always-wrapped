@@ -30,6 +30,7 @@ export function init({ onWrappedRequest } = {}) {
         onUnlock: unlock,
         onPlantimeSave: savePlantime,
         onPlantimeOff: turnPlantimeOff,
+        onHelp: toggleHelp,
     });
     if (mounted) {
         view.restoreTranscript();
@@ -118,6 +119,18 @@ async function turnPlantimeOff() {
     }
 }
 
+async function toggleHelp() {
+    if (view.commandsPanelIsOpen()) {
+        view.hideCommandsPanel();
+        return;
+    }
+    try {
+        view.renderCommandsPanel(await api.fetchCommands());
+    } catch (error) {
+        showError(error);
+    }
+}
+
 function setBusy(busy) {
     chat.busy = busy;
     view.setBusy(busy);
@@ -194,6 +207,12 @@ async function dispatch(reply, status) {
     if (reply.type === 'spend') {
         status.remove();
         view.addMessage('system', esc(reply.response));
+        return;
+    }
+    if (reply.type === 'commands') {
+        status.remove();
+        view.addMessage('system', esc(reply.response).replace(/\n/g, '<br>'));
+        view.renderCommandsPanel(reply);
         return;
     }
 

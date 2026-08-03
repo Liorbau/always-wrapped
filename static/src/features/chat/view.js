@@ -3,7 +3,9 @@
 import { byId, esc } from '../../shared/dom.js';
 import { BUBBLE_ICON, TRANSCRIPT_KEY } from './constants.js';
 
-export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock, onPlantimeSave, onPlantimeOff }) {
+export function mountPanel({
+    onSend, onStop, onClear, onToggle, onUnlock, onPlantimeSave, onPlantimeOff, onHelp,
+}) {
     const root = byId('aw-chat-root');
     if (!root) return false;
 
@@ -12,9 +14,11 @@ export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock, onPlan
         <div id="aw-chat-panel" class="aw-hidden">
             <div class="aw-chat-header">
                 <span class="aw-chat-title">AI Wrapped<span class="green-dot">.</span></span>
+                <button class="aw-chat-help" title="Commands" type="button">?</button>
                 <button class="aw-chat-clear" title="Clear conversation"><i class="fas fa-trash-can"></i></button>
                 <button class="aw-chat-close" title="Close">&times;</button>
             </div>
+            <div id="aw-commands" class="aw-hidden"></div>
             <div id="aw-plantime" class="aw-hidden">
                 <label for="aw-plantime-input">Nightly planner</label>
                 <input id="aw-plantime-input" type="time" />
@@ -33,7 +37,7 @@ export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock, onPlan
             <div id="aw-chat-messages"></div>
             <form id="aw-chat-form">
                 <input id="aw-chat-input" autocomplete="off"
-                       placeholder="Ask for a playlist, or /plantime 21:00" />
+                       placeholder="Ask for a playlist, or /help" />
                 <button type="button" id="aw-stop" class="aw-hidden" title="Stop the DJ">
                     <i class="fas fa-stop"></i></button>
                 <button type="submit" id="aw-send"><i class="fas fa-paper-plane"></i></button>
@@ -43,12 +47,35 @@ export function mountPanel({ onSend, onStop, onClear, onToggle, onUnlock, onPlan
     byId('aw-chat-bubble').addEventListener('click', onToggle);
     root.querySelector('.aw-chat-close').addEventListener('click', onToggle);
     root.querySelector('.aw-chat-clear').addEventListener('click', onClear);
+    root.querySelector('.aw-chat-help').addEventListener('click', onHelp);
     byId('aw-chat-form').addEventListener('submit', onSend);
     byId('aw-stop').addEventListener('click', onStop);
     byId('aw-unlock-form').addEventListener('submit', onUnlock);
     byId('aw-plantime-save').addEventListener('click', onPlantimeSave);
     byId('aw-plantime-off').addEventListener('click', onPlantimeOff);
     return true;
+}
+
+export function commandsPanelIsOpen() {
+    return !byId('aw-commands').classList.contains('aw-hidden');
+}
+
+export function hideCommandsPanel() {
+    byId('aw-commands').classList.add('aw-hidden');
+    byId('aw-commands').innerHTML = '';
+}
+
+export function renderCommandsPanel(payload) {
+    const panel = byId('aw-commands');
+    const commands = (payload && payload.commands) || [];
+    const rows = commands.map((c) =>
+        `<div class="aw-cmd"><code>${esc(c.usage)}</code>` +
+        `<span>${esc(c.blurb)}</span></div>`).join('');
+    panel.innerHTML = `
+        <div class="aw-commands-head">Commands</div>
+        <div class="aw-commands-list">${rows}</div>
+        <p class="aw-commands-note">Or type <code>/help</code>. Plain language works too.</p>`;
+    panel.classList.remove('aw-hidden');
 }
 
 export function panelIsOpen() {
