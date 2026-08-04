@@ -195,7 +195,8 @@ def top_biases(limit=10):
         _ensure_table(conn, driver)
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT kind, key, weight, sample_n FROM preference_bias ORDER BY ABS(weight) DESC"
+            "SELECT kind, key, weight, sample_n, evidence FROM preference_bias "
+            "ORDER BY ABS(weight) DESC"
         )
         rows = cursor.fetchall()
     except Exception as exc:
@@ -204,18 +205,26 @@ def top_biases(limit=10):
     finally:
         conn.close()
     out = []
-    for kind, key, weight, sample_n in rows:
+    for kind, key, weight, sample_n, evidence in rows:
         effective = weight * min(1.0, sample_n / MIN_SAMPLES_FULL)
         if abs(effective) >= 0.05:
-            out.append({"kind": kind, "key": key, "weight": round(effective, 2)})
+            out.append({
+                "kind": kind,
+                "key": key,
+                "weight": round(effective, 2),
+                "sample_n": int(sample_n or 0),
+                "evidence": evidence or "",
+                "weak": int(sample_n or 0) < MIN_SAMPLES_FULL,
+            })
         if len(out) >= limit:
             break
     return out
 
 
-def format_biases_for_dj():
+def format_biases_for_dj(biases=None):
     """Prompt block the DJ appends — soft guidance + mandatory exploration."""
-    biases = top_biases()
+    if biases is None:
+        biases = top_biases()
     if not biases:
         return ""
     lines = ["\nLEARNED PREFERENCES (soft biases from observed behavior — "

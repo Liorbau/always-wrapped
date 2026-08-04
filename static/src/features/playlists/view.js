@@ -1,4 +1,5 @@
 import { byId, esc } from '../../shared/dom.js';
+import { whyMixHtml, traceFromPlaylist } from '../../shared/whyMix.js';
 import { CRITERIA } from './constants.js';
 
 export function bind({ onUnlock, onRate, onNote, onSearch }) {
@@ -109,6 +110,7 @@ function cardHtml(pl, unlocked) {
     const note = (pl.feedback || []).find((f) => f.note)?.note || '';
     const tracks = (pl.tracks || []).slice(0, 5);
     const more = Math.max(0, (pl.tracks || []).length - tracks.length);
+    const why = whyMixHtml(traceFromPlaylist(pl));
 
     return `
     <article class="pl-card" id="pl-card-${esc(pl.id)}" data-id="${esc(pl.id)}">
@@ -119,6 +121,7 @@ function cardHtml(pl, unlocked) {
             </div>
             ${pl.url ? `<a class="pl-spotify" href="${esc(pl.url)}" target="_blank" rel="noopener">Open in Spotify</a>` : ''}
         </div>
+        ${why}
         <ul class="pl-tracks">
             ${tracks.map((t) => `
                 <li>${esc(t.track_name || '?')}

@@ -1,6 +1,7 @@
 // DOM for the chat panel. Receives callbacks; never fetches, never polls.
 
 import { byId, esc } from '../../shared/dom.js';
+import { whyMixHtml, traceFromPlaylist } from '../../shared/whyMix.js';
 import { BUBBLE_ICON, TRANSCRIPT_KEY } from './constants.js';
 
 export function mountPanel({
@@ -193,6 +194,8 @@ export function renderProposal(proposalId, playlist, { onApprove, onReject }) {
         ? `<div class="aw-card-cap">Up to ${esc(playlist.artist_cap)} per artist — ${esc(playlist.artist_cap_reason)}</div>`
         : '';
 
+    const why = whyMixHtml(traceFromPlaylist(playlist));
+
     const card = addMessage('card', `
         <div class="aw-card-head">
             <strong>${esc(playlist.name)}</strong>
@@ -200,6 +203,7 @@ export function renderProposal(proposalId, playlist, { onApprove, onReject }) {
         </div>
         <div class="aw-card-desc">${esc(playlist.description)}</div>
         ${capNote}
+        ${why}
         <div class="aw-tracks">${tracks}</div>
         <div class="aw-card-actions">
             <button class="aw-approve"><i class="fas fa-check"></i> Approve &amp; push</button>

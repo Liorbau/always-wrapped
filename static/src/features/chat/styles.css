@@ -116,6 +116,15 @@
     margin-bottom: 10px; }
 .aw-card-cap { color: #c9a227; font-size: 0.82rem; line-height: 1.4;
     margin: -4px 0 10px; }
+.aw-why { margin: 0 0 10px; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 8px 10px; background: #121212; }
+.aw-why summary {
+    cursor: pointer; font-size: 0.78rem; font-weight: 800; color: var(--green, #1ed760);
+    letter-spacing: 0.3px; list-style: none; }
+.aw-why summary::-webkit-details-marker { display: none; }
+.aw-why-summary { margin: 8px 0 0; padding-left: 1.1rem; color: #bdbdbd;
+    font-size: 0.78rem; line-height: 1.45; }
+.aw-why-note { margin: 8px 0 0; color: #6f6f6f; font-size: 0.7rem; line-height: 1.4; }
 .aw-tracks { display: flex; flex-direction: column; gap: 6px;
     margin-bottom: 12px; max-height: 180px; overflow-y: auto; }
 .aw-tracks::-webkit-scrollbar { width: 6px; }
