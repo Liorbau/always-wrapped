@@ -248,8 +248,11 @@ def test_observatory_endpoints():
     r = client.get("/api/agent/activity").get_json()
     assert set(r) == {
         "active", "events", "daily_cost", "week_cost", "month_cost", "daily_budget",
+        "learning_outcomes",
     }
     assert r["active"] is None or "agent" in r["active"]
+    assert isinstance(r["learning_outcomes"], dict)
+    assert "n_playlists" in r["learning_outcomes"]
 
 
 def test_commands_dictionary_and_help():
