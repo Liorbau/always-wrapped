@@ -7,7 +7,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 
-const ENTRY_POINTS = ['static/src/main.js', 'static/src/observatory.js'];
+const ENTRY_POINTS = [
+    'static/src/main.js',
+    'static/src/observatory.js',
+    'static/src/playlists.js',
+];
 const IMPORT_RE = /import\s+([^'"]+?)\s+from\s+['"]([^'"]+)['"]/g;
 
 const problems = [];

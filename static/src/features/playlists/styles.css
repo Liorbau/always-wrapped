@@ -1,0 +1,269 @@
+/* DJ playlists shelf — rate pushed mixes outside chat. */
+
+.pl-page {
+    min-height: 100vh;
+    background:
+        radial-gradient(ellipse at 20% 0%, rgba(30, 215, 96, 0.07), transparent 45%),
+        radial-gradient(ellipse at 90% 30%, rgba(255, 255, 255, 0.03), transparent 40%),
+        #050505;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.pl-nav {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 22px 36px;
+}
+
+.pl-back {
+    color: var(--text-3);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.pl-back:hover { color: var(--green); }
+
+.pl-brand {
+    font-family: 'Anton', 'Montserrat', sans-serif;
+    font-weight: 400;
+    letter-spacing: 1px;
+    font-size: 1.2rem;
+    margin: 0 auto;
+}
+
+.pl-nav-spacer { width: 88px; }
+
+.pl-main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 8px 24px 64px;
+}
+
+.pl-intro {
+    margin-bottom: 18px;
+}
+.pl-intro p {
+    color: var(--text-2);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    max-width: 36rem;
+}
+
+.pl-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 0 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: #101010;
+}
+.pl-search-wrap i {
+    color: var(--text-3);
+    font-size: 0.85rem;
+}
+.pl-search-wrap input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 12px 0;
+    font: inherit;
+    font-size: 0.88rem;
+    outline: none;
+}
+.pl-search-wrap input::placeholder { color: var(--text-3); }
+.pl-search-count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.pl-unlock {
+    margin-bottom: 20px;
+    padding: 16px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: #101010;
+}
+.pl-unlock p {
+    font-size: 0.85rem;
+    color: var(--text-2);
+    margin-bottom: 10px;
+}
+.pl-unlock form {
+    display: flex;
+    gap: 10px;
+}
+.pl-unlock input {
+    flex: 1;
+    background: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    color: #fff;
+    padding: 10px 12px;
+    font: inherit;
+}
+.pl-unlock button {
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-weight: 800;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+.pl-unlock button:disabled,
+.pl-unlock input:disabled { opacity: 0.55; cursor: not-allowed; }
+.pl-unlock-error { color: #ff6b6b; font-size: 0.8rem; margin-top: 8px; }
+
+.pl-status {
+    color: var(--text-3);
+    font-size: 0.9rem;
+    padding: 28px 0;
+}
+
+.pl-list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.pl-card {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: #0d0d0d;
+    padding: 20px 22px;
+    animation: pl-in 0.35s ease both;
+}
+.pl-card:nth-child(2) { animation-delay: 0.05s; }
+.pl-card:nth-child(3) { animation-delay: 0.1s; }
+
+@keyframes pl-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+.pl-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+.pl-card-head h2 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+}
+.pl-meta {
+    margin-top: 4px;
+    font-size: 0.78rem;
+    color: var(--text-3);
+    line-height: 1.4;
+}
+.pl-spotify {
+    flex-shrink: 0;
+    color: var(--green);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+.pl-spotify:hover { text-decoration: underline; }
+
+.pl-tracks {
+    list-style: none;
+    margin: 0 0 18px;
+    padding: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.pl-tracks li {
+    padding: 8px 0;
+    font-size: 0.82rem;
+    color: #ddd;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.pl-tracks li:last-child { border-bottom: none; }
+.pl-tracks em {
+    font-style: normal;
+    color: var(--text-3);
+    font-size: 0.78rem;
+}
+.pl-more { color: var(--text-3) !important; font-weight: 600; }
+
+.pl-ratings { display: flex; flex-direction: column; gap: 10px; }
+.pl-crit {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 10px;
+    align-items: center;
+}
+.pl-crit-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-2);
+}
+.pl-stars { display: flex; gap: 2px; }
+.pl-star {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.18);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+    transition: color 0.12s, transform 0.12s;
+}
+.pl-star:hover { color: rgba(30, 215, 96, 0.55); transform: scale(1.08); }
+.pl-star.on { color: var(--green); }
+
+.pl-note {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+}
+.pl-note span {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-3);
+}
+.pl-note textarea {
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 56px;
+    background: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #fff;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 0.85rem;
+}
+.pl-note textarea:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .pl-nav { padding: 18px 18px; }
+    .pl-nav-spacer { display: none; }
+    .pl-main { padding: 4px 16px 48px; }
+    .pl-card-head { flex-direction: column; }
+    .pl-crit { grid-template-columns: 1fr; gap: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pl-card { animation: none; }
+    .pl-star { transition: none; }
+}
