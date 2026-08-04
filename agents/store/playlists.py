@@ -274,6 +274,54 @@ def feedback_for(playlist_id):
         conn.close()
 
 
+def recent_rated(limit=10):
+    """Playlists that have any feedback, newest rating activity first.
+
+    Built for the Evaluator's context blob — small N, not a general catalog API.
+    """
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 10
+    limit = max(1, min(limit, 50))
+
+    conn, driver = get_db_connection()
+    if conn is None:
+        logger.error("Recent ratings unavailable: no DB connection.")
+        return []
+
+    try:
+        _ensure(conn, driver)
+        p = dialect_for(driver).placeholder
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT playlist_id, MAX(updated_at) AS last_at "
+            "FROM playlist_feedback GROUP BY playlist_id "
+            f"ORDER BY last_at DESC LIMIT {p}",
+            (limit,),
+        )
+        ranked = [(row[0], row[1]) for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+    out = []
+    for playlist_id, last_at in ranked:
+        pl = get(playlist_id)
+        if pl is None:
+            continue
+        out.append({
+            "id": pl["id"],
+            "name": pl["name"],
+            "description": pl["description"],
+            "context": pl["context"],
+            "pushed_at": pl["pushed_at"],
+            "last_rated_at": last_at,
+            "tracks": pl["tracks"],
+            "feedback": feedback_for(playlist_id),
+        })
+    return out
+
+
 def _row_to_playlist(row):
     try:
         tracks = json.loads(row[5] or "[]")
