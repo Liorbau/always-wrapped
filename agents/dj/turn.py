@@ -7,6 +7,7 @@ from agents.dj.constraints import (
     MAX_REPAIR_ROUNDS,
     MAX_STEPS,
 )
+from agents.dj.decision_trace import attach_decision_trace
 from agents.dj.prompt import DJ_SYSTEM_PROMPT
 from agents.harness import AgentHarness
 from agents.schemas import parse_playlist
@@ -24,15 +25,20 @@ SALVAGE_NOTE = (
 
 def build_dj(llm=None, max_cost_usd=MAX_COST_USD):
     """Configured harness for the DJ agent, seasoned with learned preferences."""
-    from agents.evaluator import format_biases_for_dj  # lazy: avoids an import cycle
+    # lazy: avoids an import cycle with evaluator → tools → …
+    from agents.evaluator import format_biases_for_dj, top_biases
 
-    return AgentHarness(
+    biases = top_biases()
+    dj = AgentHarness(
         llm=llm,
         tool_schemas=TOOL_SCHEMAS,
         tool_registry=TOOL_REGISTRY,
-        system_prompt=DJ_SYSTEM_PROMPT + format_biases_for_dj(),
+        system_prompt=DJ_SYSTEM_PROMPT + format_biases_for_dj(biases),
         max_cost_usd=max_cost_usd,
     )
+    # Same snapshot the prompt saw — decision_trace must not re-read later.
+    dj.bias_snapshot = biases
+    return dj
 
 
 def run_dj_turn(dj, message, max_steps=MAX_STEPS):
@@ -139,6 +145,12 @@ def _repair_if_noncompliant(packed):
 
 
 def _turn_result(dj, response, playlist, note, violations):
+    if playlist is not None:
+        playlist = attach_decision_trace(
+            playlist,
+            biases=getattr(dj, "bias_snapshot", None) or [],
+            violations=violations,
+        )
     return {
         "response": response,
         "playlist": playlist,

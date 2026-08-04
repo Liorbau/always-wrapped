@@ -94,6 +94,9 @@ def context_from_playlist(playlist):
         "artist_cap", "artist_cap_reason", "total_duration_min",
     )
     ctx = {k: playlist[k] for k in keys if playlist.get(k) not in (None, "")}
+    trace = playlist.get("decision_trace")
+    if isinstance(trace, dict) and trace:
+        ctx["decision_trace"] = trace
     return ctx or None
 
 
