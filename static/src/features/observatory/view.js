@@ -65,12 +65,36 @@ export function renderCosts({
     week_cost: week,
     month_cost: month,
     daily_budget: budget,
+    learning_outcomes: outcomes,
 }) {
     // null when the ledger is unreadable — never imply $0.00
     byId('ag-day-cost').textContent = money(spent);
     byId('ag-week-cost').textContent = money(week);
     byId('ag-month-cost').textContent = money(month);
     byId('ag-budget').textContent = `$${budget.toFixed(0)}`;
+    renderOutcomes(outcomes);
+}
+
+export function renderOutcomes(outcomes) {
+    const el = byId('ag-outcomes');
+    if (!el) return;
+    if (!outcomes || !outcomes.n_playlists) {
+        el.innerHTML = 'outcomes <b>—</b>';
+        el.title = '';
+        return;
+    }
+    const parts = [`n=${outcomes.n_playlists}`];
+    if (outcomes.n_with_plays != null) parts.push(`${outcomes.n_with_plays} played`);
+    if (outcomes.skip_rate != null) parts.push(`skip ${pct(outcomes.skip_rate)}`);
+    if (outcomes.mean_rating != null) parts.push(`★ ${outcomes.mean_rating}`);
+    if (outcomes.approve_rate != null) parts.push(`approve ${pct(outcomes.approve_rate)}`);
+    if (outcomes.cohort_trend) parts.push(outcomes.cohort_trend);
+    el.innerHTML = `outcomes <b>${esc(parts.join(' · '))}</b>`;
+    el.title = outcomes.disclaimer || '';
+}
+
+function pct(rate) {
+    return `${Math.round(Number(rate) * 100)}%`;
 }
 
 function money(value) {

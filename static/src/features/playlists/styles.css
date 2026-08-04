@@ -168,6 +168,13 @@
     color: var(--text-3);
     line-height: 1.4;
 }
+.pl-outcome {
+    margin-top: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 0.2px;
+}
 .pl-spotify {
     flex-shrink: 0;
     color: var(--green);

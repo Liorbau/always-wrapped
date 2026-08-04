@@ -82,6 +82,31 @@ def _record(decision, playlist, url=None, reason=None, ts=None, record_id=None):
         conn.close()
 
 
+def decision_counts():
+    """Totals per decision kind — for outcome / observatory summaries."""
+    conn, driver = get_db_connection()
+    if conn is None:
+        logger.error("HITL counts unavailable: no DB connection.")
+        return {"pushed": None, "rejected": None, "approve_rate": None}
+    try:
+        _ensure_table(conn)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT decision, COUNT(*) FROM hitl_decision GROUP BY decision"
+        )
+        counts = {row[0]: int(row[1]) for row in cursor.fetchall()}
+        pushed = counts.get(PUSHED, 0)
+        rejected = counts.get(REJECTED, 0)
+        total = pushed + rejected
+        return {
+            "pushed": pushed,
+            "rejected": rejected,
+            "approve_rate": round(pushed / total, 3) if total else None,
+        }
+    finally:
+        conn.close()
+
+
 def recent(decision, limit=10):
     """The newest decisions of one kind, returned oldest-first so the Evaluator
     reads them as a timeline."""
