@@ -47,6 +47,8 @@ def test_list_playlists_is_public_and_includes_feedback():
         assert row["id"] == "p1" and row["name"] == "Run Fuel"
         assert row["feedback"][0]["criterion"] == "vibe_fit"
         assert row["feedback"][0]["score"] == 4.0
+        assert "outcome" in row
+        assert body["learning_outcomes"]["disclaimer"]
 
 
 def test_feedback_requires_owner_and_validates():

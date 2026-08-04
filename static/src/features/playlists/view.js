@@ -111,6 +111,7 @@ function cardHtml(pl, unlocked) {
     const tracks = (pl.tracks || []).slice(0, 5);
     const more = Math.max(0, (pl.tracks || []).length - tracks.length);
     const why = whyMixHtml(traceFromPlaylist(pl));
+    const outcome = outcomeLine(pl.outcome);
 
     return `
     <article class="pl-card" id="pl-card-${esc(pl.id)}" data-id="${esc(pl.id)}">
@@ -118,6 +119,7 @@ function cardHtml(pl, unlocked) {
             <div>
                 <h2>${esc(pl.name || 'Untitled')}</h2>
                 <p class="pl-meta">${esc(when)}${pl.description ? ` · ${esc(pl.description)}` : ''}</p>
+                ${outcome}
             </div>
             ${pl.url ? `<a class="pl-spotify" href="${esc(pl.url)}" target="_blank" rel="noopener">Open in Spotify</a>` : ''}
         </div>
@@ -160,4 +162,19 @@ function formatWhen(iso) {
     const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T'));
     if (Number.isNaN(d.getTime())) return iso;
     return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function outcomeLine(outcome) {
+    if (!outcome) return '';
+    if (outcome.status === 'never_played') {
+        return '<p class="pl-outcome">No plays after push</p>';
+    }
+    const bits = [];
+    if (outcome.skip_rate != null) bits.push(`skip ${Math.round(outcome.skip_rate * 100)}%`);
+    if (outcome.completion_rate != null) {
+        bits.push(`complete ${Math.round(outcome.completion_rate * 100)}%`);
+    }
+    if (outcome.mean_rating != null) bits.push(`★ ${outcome.mean_rating}`);
+    if (!bits.length) return '';
+    return `<p class="pl-outcome" title="${esc(outcome.note || '')}">${esc(bits.join(' · '))}</p>`;
 }

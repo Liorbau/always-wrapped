@@ -73,8 +73,9 @@ body { background: var(--bg); color: #fff; font-family: 'Montserrat', sans-serif
     padding: 14px 30px; border-top: 1px solid rgba(255,255,255,0.07);
     font-size: 0.8rem; color: var(--text-2); }
 #ag-active-line b { color: var(--green); }
-.ag-costs { display: flex; gap: 26px; font-variant-numeric: tabular-nums; }
+.ag-costs { display: flex; gap: 26px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
 .ag-costs b { color: #fff; }
+.ag-outcomes b { color: var(--green); font-weight: 700; }
 #ag-run-cost.hot { color: var(--green); }
 
 @media (prefers-reduced-motion: reduce) {

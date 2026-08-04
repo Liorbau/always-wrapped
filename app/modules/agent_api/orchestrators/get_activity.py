@@ -1,4 +1,5 @@
 from agents.ledger import spend_windows
+from agents import playlist_outcomes
 from app.modules.agent_api import events, planning, runs
 
 
@@ -13,6 +14,7 @@ def execute():
         "week_cost": _money(windows["week"]),
         "month_cost": _money(windows["month"]),
         "daily_budget": windows["daily_budget"],
+        "learning_outcomes": playlist_outcomes.observatory_line(),
     }
 
 
