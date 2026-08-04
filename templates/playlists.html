@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Always Wrapped · DJ Playlists</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/styles/tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/styles/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/styles/layout.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/features/playlists/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='src/styles/utilities.css') }}">
+</head>
+<body class="pl-page">
+    <nav class="pl-nav">
+        <a href="/" class="pl-back" id="pl-back"><i class="fas fa-arrow-left"></i> dashboard</a>
+        <div class="pl-brand">YOUR DJ PLAYLISTS<span class="green-dot">.</span></div>
+        <div class="pl-nav-spacer"></div>
+    </nav>
+
+    <main class="pl-main">
+        <header class="pl-intro">
+            <p>Rate playlists the DJ pushed to Spotify. Ratings feed the Evaluator later.</p>
+        </header>
+
+        <div id="pl-search-wrap" class="pl-search-wrap aw-hidden">
+            <i class="fas fa-search" aria-hidden="true"></i>
+            <input id="pl-search" type="search" placeholder="Search name, artist, or track…"
+                   autocomplete="off" aria-label="Search playlists" />
+            <span id="pl-search-count" class="pl-search-count"></span>
+        </div>
+
+        <div id="pl-unlock" class="pl-unlock aw-hidden">
+            <p>Enter the owner password to save ratings.</p>
+            <form id="pl-unlock-form">
+                <input id="pl-unlock-input" type="password" autocomplete="current-password"
+                       placeholder="Password" />
+                <button type="submit">Unlock</button>
+            </form>
+            <p id="pl-unlock-error" class="pl-unlock-error aw-hidden"></p>
+        </div>
+
+        <div id="pl-status" class="pl-status" aria-live="polite">Loading…</div>
+        <div id="pl-list" class="pl-list"></div>
+    </main>
+
+    <script type="module" src="{{ url_for('static', filename='src/playlists.js') }}"></script>
+</body>
+</html>

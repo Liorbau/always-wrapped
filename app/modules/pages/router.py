@@ -13,3 +13,8 @@ def dashboard():
 @pages_bp.route("/agents")
 def observatory():
     return render_template("agents.html")
+
+
+@pages_bp.route("/playlists")
+def playlists():
+    return render_template("playlists.html")

@@ -7,6 +7,7 @@ import * as library from './features/library/state.js';
 import * as search from './features/search/state.js';
 import * as wrappedMenu from './features/wrapped/menu.js';
 import * as wrapped from './features/wrapped/state.js';
+import { initPageNav } from './shared/pageNav.js';
 
 backdrop.init();
 library.init();
@@ -15,3 +16,4 @@ search.init();
 wrapped.init();
 wrappedMenu.init({ onOpen: wrapped.open });
 chat.init({ onWrappedRequest: wrapped.open });
+initPageNav([{ selector: '#nav-playlists', direction: 'forward' }]);

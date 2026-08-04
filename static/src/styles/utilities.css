@@ -6,6 +6,27 @@
 
 .green-dot { color: var(--green); }
 
+/* Dashboard ↔ playlists page slide (armed by shared/pageNav.js). */
+html.aw-leave-left body { animation: aw-slide-out-left 0.18s ease both; }
+html.aw-leave-right body { animation: aw-slide-out-right 0.18s ease both; }
+html.aw-enter-from-right body { animation: aw-slide-in-right 0.2s ease both; }
+html.aw-enter-from-left body { animation: aw-slide-in-left 0.2s ease both; }
+
+@keyframes aw-slide-out-left {
+    to { opacity: 0; transform: translateX(-24px); }
+}
+@keyframes aw-slide-out-right {
+    to { opacity: 0; transform: translateX(24px); }
+}
+@keyframes aw-slide-in-right {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes aw-slide-in-left {
+    from { opacity: 0; transform: translateX(-24px); }
+    to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     * {
         transition-duration: 0.01ms !important;
