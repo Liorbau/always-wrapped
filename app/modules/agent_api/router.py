@@ -15,8 +15,10 @@ from app.modules.agent_api.orchestrators import (
     get_run_status,
     handle_telegram_update,
     list_commands,
+    list_playlists,
     planner_schedule,
     reject_proposal,
+    save_playlist_feedback,
     send_chat,
     start_planning,
     stop_run,
@@ -59,6 +61,19 @@ def commands():
     """Public command dictionary for the chat “?” panel (no secrets)."""
     surface = (request.args.get("surface") or "web").lower()
     return jsonify(list_commands.for_surface(surface))
+
+
+@agents_bp.get("/playlists")
+def playlists():
+    """Public shelf of DJ-pushed playlists + current feedback."""
+    return jsonify(list_playlists.execute(request.args.get("limit")))
+
+
+@agents_bp.post("/playlists/<playlist_id>/feedback")
+@require_owner
+def playlist_feedback(playlist_id):
+    body = request.get_json(silent=True) or {}
+    return jsonify(save_playlist_feedback.execute(playlist_id, body))
 
 
 @agents_bp.get("/run/<run_id>")

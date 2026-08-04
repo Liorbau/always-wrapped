@@ -32,6 +32,7 @@ def test_mutations_fail_closed_without_cookie():
         "/api/agent/evaluate",
         "/api/agent/plan",
         "/api/agent/run/x/stop",
+        "/api/agent/playlists/x/feedback",
         "/api/refresh",
     ):
         response = client.post(path, json={})
@@ -44,8 +45,9 @@ def test_reads_stay_public():
     status = client.get("/api/owner/status")
     assert status.status_code == 200
     assert status.get_json()["unlocked"] is False
-    # activity is a public observatory read — must not demand the owner cookie
+    # activity / playlist shelf are public reads — must not demand the owner cookie
     assert client.get("/api/agent/activity").status_code != 401
+    assert client.get("/api/agent/playlists").status_code != 401
 
 
 def test_wrong_password_rejected():

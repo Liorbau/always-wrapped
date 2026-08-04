@@ -220,6 +220,31 @@ def list_pushed(limit=50):
         conn.close()
 
 
+def get(playlist_id):
+    """One pushed playlist by id, or None."""
+    if not playlist_id:
+        return None
+    conn, driver = get_db_connection()
+    if conn is None:
+        logger.error("Pushed playlist unavailable: no DB connection.")
+        return None
+
+    try:
+        _ensure(conn, driver)
+        p = dialect_for(driver).placeholder
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, spotify_playlist_id, url, name, description, tracks, "
+            "context, pushed_at FROM pushed_playlists "
+            f"WHERE id = {p}",
+            (playlist_id,),
+        )
+        row = cursor.fetchone()
+        return _row_to_playlist(row) if row else None
+    finally:
+        conn.close()
+
+
 def feedback_for(playlist_id):
     """All criterion rows for one playlist (empty if none / unread)."""
     conn, driver = get_db_connection()
