@@ -131,7 +131,7 @@ function cardHtml(pl, unlocked) {
             ${more ? `<li class="pl-more">+${more} more</li>` : ''}
         </ul>
         <div class="pl-ratings ${unlocked ? '' : 'pl-ratings-locked'}">
-            ${CRITERIA.map(({ id, label }) => starsRow(pl.id, id, label, byCrit[id])).join('')}
+            ${CRITERIA.map(({ id, label, hint }) => starsRow(pl.id, id, label, byCrit[id], hint)).join('')}
             <label class="pl-note">
                 <span>Note</span>
                 <textarea data-note data-playlist-id="${esc(pl.id)}" rows="2"
@@ -142,7 +142,7 @@ function cardHtml(pl, unlocked) {
     </article>`;
 }
 
-function starsRow(playlistId, criterion, label, feedback) {
+function starsRow(playlistId, criterion, label, feedback, hint) {
     const score = feedback ? Number(feedback.score) : 0;
     const stars = [1, 2, 3, 4, 5].map((n) => `
         <button type="button" class="pl-star ${n <= score && score > 0 ? 'on' : ''}"
@@ -150,9 +150,10 @@ function starsRow(playlistId, criterion, label, feedback) {
             data-playlist-id="${esc(playlistId)}"
             aria-label="${esc(label)} ${n} of 5"
             aria-pressed="${n === score ? 'true' : 'false'}">★</button>`).join('');
+    const title = hint ? ` title="${esc(hint)}"` : '';
     return `
     <div class="pl-crit">
-        <span class="pl-crit-label">${esc(label)}</span>
+        <span class="pl-crit-label"${title}>${esc(label)}</span>
         <div class="pl-stars" role="group" aria-label="${esc(label)}">${stars}</div>
     </div>`;
 }
