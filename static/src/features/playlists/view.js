@@ -170,12 +170,25 @@ function outcomeLine(outcome) {
     if (outcome.status === 'never_played') {
         return '<p class="pl-outcome">No plays after push</p>';
     }
+    const nTracks = Number(outcome.n_tracks) || 0;
+    const nPlayed = Number(outcome.n_played_unique) || 0;
+    const nSkipped = Number(outcome.n_skipped) || 0;
+    const nCompleted = Number(outcome.n_completed) || 0;
+    const decided = nSkipped + nCompleted;
     const bits = [];
-    if (outcome.skip_rate != null) bits.push(`skip ${Math.round(outcome.skip_rate * 100)}%`);
-    if (outcome.completion_rate != null) {
-        bits.push(`complete ${Math.round(outcome.completion_rate * 100)}%`);
+    if (nTracks > 0) bits.push(`${nPlayed}/${nTracks} tracks played`);
+    if (nSkipped > 0) bits.push(`${nSkipped} skip${nSkipped === 1 ? '' : 's'}`);
+    // % only after a few finished listens — early “100% complete” was misleading.
+    if (decided >= 3) {
+        bits.push(`${Math.round(outcome.skip_rate * 100)}% skip of finished listens`);
+    } else if (nCompleted > 0 && nSkipped === 0) {
+        bits.push(`${nCompleted} listened through`);
     }
     if (outcome.mean_rating != null) bits.push(`★ ${outcome.mean_rating}`);
     if (!bits.length) return '';
-    return `<p class="pl-outcome" title="${esc(outcome.note || '')}">${esc(bits.join(' · '))}</p>`;
+    const tip = [
+        outcome.note,
+        'Skip/complete % is among finished listens only (current track excluded).',
+    ].filter(Boolean).join(' ');
+    return `<p class="pl-outcome" title="${esc(tip)}">${esc(bits.join(' · '))}</p>`;
 }
