@@ -33,7 +33,6 @@ def test_mutations_fail_closed_without_cookie():
         "/api/agent/plan",
         "/api/agent/run/x/stop",
         "/api/agent/playlists/x/feedback",
-        "/api/refresh",
     ):
         response = client.post(path, json={})
         assert response.status_code == 401, path
@@ -48,6 +47,7 @@ def test_reads_stay_public():
     # activity / playlist shelf are public reads — must not demand the owner cookie
     assert client.get("/api/agent/activity").status_code != 401
     assert client.get("/api/agent/playlists").status_code != 401
+    assert client.post("/api/refresh").status_code != 401
 
 
 def test_wrong_password_rejected():
